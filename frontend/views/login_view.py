@@ -75,7 +75,7 @@ class LoginView(tk.Frame):
             text="Login",
             font=config.NORMAL_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.login,
             width=15,
             height=2

@@ -76,6 +76,8 @@ async def create_question(request: CreateQuestionRequest):
             return QuestionResponse(**question.to_dict())
         else:
             raise HTTPException(status_code=400, detail="Failed to create question")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -102,6 +104,8 @@ async def update_question(question_id: int, request: CreateQuestionRequest):
             return QuestionResponse(**updated_question.to_dict())
         else:
             raise HTTPException(status_code=400, detail="Failed to update question")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

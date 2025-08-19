@@ -33,7 +33,7 @@ class ImportView(tk.Frame):
             text="Import DOCX",
             font=config.TITLE_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white"
+            fg="black"
         )
         title_label.pack(side='left', padx=20, pady=15)
         
@@ -43,7 +43,7 @@ class ImportView(tk.Frame):
             text="← Back",
             font=config.NORMAL_FONT,
             bg=config.SECONDARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.go_back
         )
         back_button.pack(side='right', padx=20, pady=15)
@@ -86,7 +86,7 @@ class ImportView(tk.Frame):
             text="Browse",
             font=config.NORMAL_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.browse_file
         )
         browse_button.pack(side='right', padx=10, pady=10)
@@ -135,7 +135,7 @@ class ImportView(tk.Frame):
             text="Preview",
             font=config.NORMAL_FONT,
             bg=config.WARNING_COLOR,
-            fg="white",
+            fg="black",
             command=self.preview_file,
             width=15
         )
@@ -147,7 +147,7 @@ class ImportView(tk.Frame):
             text="Import",
             font=config.NORMAL_FONT,
             bg=config.SUCCESS_COLOR,
-            fg="white",
+            fg="black",
             command=self.import_file,
             width=15
         )

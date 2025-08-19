@@ -96,6 +96,27 @@ class Question:
         try:
             logger.info(f"Creating question with subject_id={subject_id}, unit_text='{unit_text}', question='{question[:50]}...'")
             
+            # Validate choices
+            if not choices or len(choices) < 2:
+                raise ValueError("Question must have at least 2 choices")
+            
+            # Check if there's at least one correct answer
+            has_correct_answer = any(choice.get('is_correct', False) for choice in choices)
+            if not has_correct_answer:
+                raise ValueError("Question must have at least one correct answer")
+            
+            # Check if all choices have content
+            empty_choices = []
+            for i, choice in enumerate(choices):
+                if not choice.get('content', '').strip():
+                    empty_choices.append(i + 1)
+            
+            if empty_choices:
+                if len(empty_choices) == 1:
+                    raise ValueError(f"Choice {empty_choices[0]} cannot be empty")
+                else:
+                    raise ValueError(f"Choices {', '.join(map(str, empty_choices))} cannot be empty")
+            
             # Insert question
             query = """
                 INSERT INTO questions (subject_id, unit_text, question, mix_choices, image, mark, created_by, updated_at)
@@ -152,6 +173,27 @@ class Question:
                mark: float, updated_by: int, choices: List[Dict[str, Any]]) -> bool:
         """Cập nhật question"""
         try:
+            # Validate choices
+            if not choices or len(choices) < 2:
+                raise ValueError("Question must have at least 2 choices")
+            
+            # Check if there's at least one correct answer
+            has_correct_answer = any(choice.get('is_correct', False) for choice in choices)
+            if not has_correct_answer:
+                raise ValueError("Question must have at least one correct answer")
+            
+            # Check if all choices have content
+            empty_choices = []
+            for i, choice in enumerate(choices):
+                if not choice.get('content', '').strip():
+                    empty_choices.append(i + 1)
+            
+            if empty_choices:
+                if len(empty_choices) == 1:
+                    raise ValueError(f"Choice {empty_choices[0]} cannot be empty")
+                else:
+                    raise ValueError(f"Choices {', '.join(map(str, empty_choices))} cannot be empty")
+            
             # Update question
             query = """
                 UPDATE questions 

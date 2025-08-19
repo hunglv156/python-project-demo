@@ -30,7 +30,7 @@ class DashboardView(tk.Frame):
             text=config.WINDOW_TITLE,
             font=config.TITLE_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white"
+            fg="black"
         )
         title_label.pack(side='left', padx=20, pady=15)
         
@@ -41,7 +41,7 @@ class DashboardView(tk.Frame):
             text=user_info,
             font=config.NORMAL_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white"
+            fg="black"
         )
         user_label.pack(side='right', padx=20, pady=15)
         
@@ -92,7 +92,7 @@ class DashboardView(tk.Frame):
             text="Logout",
             font=config.NORMAL_FONT,
             bg=config.ERROR_COLOR,
-            fg="white",
+            fg="black",
             command=self.logout,
             width=15,
             height=2
@@ -106,7 +106,7 @@ class DashboardView(tk.Frame):
             text=text,
             font=config.NORMAL_FONT,
             bg=config.SECONDARY_COLOR,
-            fg="white",
+            fg="black",
             command=command,
             width=20,
             height=2

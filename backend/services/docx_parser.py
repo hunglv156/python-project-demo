@@ -204,6 +204,16 @@ class DocxParser:
                 logger.warning(f"Question {self.current_question['question_number']} has no answer")
                 return
             
+            # Check for empty choices
+            empty_choices = []
+            for choice in self.current_choices:
+                if not choice.get('content', '').strip():
+                    empty_choices.append(choice['letter'].upper())
+            
+            if empty_choices:
+                logger.warning(f"Question {self.current_question['question_number']} has empty choice(s): {', '.join(empty_choices)}")
+                return
+            
             # Convert to standard format
             question_data = {
                 'question_number': self.current_question['question_number'],
@@ -318,6 +328,16 @@ class DocxParser:
             logger.warning(f"Question {question_data['question_number']} has no answer")
             return
         
+        # Check for empty choices
+        empty_choices = []
+        for choice in question_data['choices']:
+            if not choice.get('content', '').strip():
+                empty_choices.append(choice['letter'].upper())
+        
+        if empty_choices:
+            logger.warning(f"Question {question_data['question_number']} has empty choice(s): {', '.join(empty_choices)}")
+            return
+        
         # Check for image reference in question text
         image_match = re.search(r'\[file:([^\]]+)\]', question_data['question_text'])
         if image_match:
@@ -365,6 +385,18 @@ class DocxParser:
             choice_letters = [choice['letter'] for choice in question['choices']]
             if len(choice_letters) != len(set(choice_letters)):
                 errors.append(f"Question {question['question_number']}: Duplicate choice letters")
+            
+            # Check for empty choices
+            empty_choices = []
+            for i, choice in enumerate(question['choices']):
+                if not choice.get('content', '').strip():
+                    empty_choices.append(choice['letter'].upper())
+            
+            if empty_choices:
+                if len(empty_choices) == 1:
+                    errors.append(f"Question {question['question_number']}: Empty choice {empty_choices[0]}")
+                else:
+                    errors.append(f"Question {question['question_number']}: Empty choices {', '.join(empty_choices)}")
         
         return {
             'valid': len(errors) == 0,

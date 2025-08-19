@@ -33,7 +33,7 @@ class ExamView(tk.Frame):
             text="Exam Management",
             font=config.TITLE_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white"
+            fg="black"
         )
         title_label.pack(side='left', padx=20, pady=15)
         
@@ -43,7 +43,7 @@ class ExamView(tk.Frame):
             text="← Back",
             font=config.NORMAL_FONT,
             bg=config.SECONDARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.go_back
         )
         back_button.pack(side='right', padx=20, pady=15)
@@ -70,7 +70,7 @@ class ExamView(tk.Frame):
             text="Create New Exam",
             font=config.NORMAL_FONT,
             bg=config.SUCCESS_COLOR,
-            fg="white",
+            fg="black",
             command=self.create_exam
         )
         create_button.pack(side='left', padx=(0, 10))
@@ -81,7 +81,7 @@ class ExamView(tk.Frame):
             text="Add Version to Exam",
             font=config.NORMAL_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.add_exam_version
         )
         add_version_button.pack(side='left', padx=(0, 10))
@@ -92,7 +92,7 @@ class ExamView(tk.Frame):
             text="Refresh",
             font=config.NORMAL_FONT,
             bg=config.SECONDARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.load_exams
         )
         refresh_button.pack(side='right')
@@ -433,9 +433,9 @@ class ExamView(tk.Frame):
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to save exam: {str(e)}")
             
-            tk.Button(button_frame, text="Save", command=save_exam, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="white").pack(side='left', padx=(0, 10))
+            tk.Button(button_frame, text="Save", command=save_exam, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
         
-        tk.Button(button_frame, text="Close", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="white").pack(side='right')
+        tk.Button(button_frame, text="Close", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(side='right')
     
     def show_version_dialog(self, exam):
         """Show dialog to add version to exam"""
@@ -527,8 +527,8 @@ class ExamView(tk.Frame):
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to add version: {str(e)}")
         
-        tk.Button(button_frame, text="Add Version", command=add_version, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="white").pack(side='left', padx=(0, 10))
-        tk.Button(button_frame, text="Cancel", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="white").pack(side='right')
+        tk.Button(button_frame, text="Add Version", command=add_version, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
+        tk.Button(button_frame, text="Cancel", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(side='right')
     
     def go_back(self):
         """Go back to dashboard"""

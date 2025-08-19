@@ -108,6 +108,22 @@ BEFORE DELETE ON choices
 FOR EACH ROW
 EXECUTE FUNCTION check_correct_answers();
 
+-- Trigger đảm bảo content không được empty
+CREATE OR REPLACE FUNCTION check_choice_content()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.content IS NULL OR TRIM(NEW.content) = '' THEN
+    RAISE EXCEPTION 'Choice content cannot be empty';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_check_choice_content
+BEFORE INSERT OR UPDATE ON choices
+FOR EACH ROW
+EXECUTE FUNCTION check_choice_content();
+
 -- =========================
 -- 6) EXAMS (Khuôn đề)
 -- =========================

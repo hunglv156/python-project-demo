@@ -32,7 +32,7 @@ class QuestionView(tk.Frame):
             text="Question Management",
             font=config.TITLE_FONT,
             bg=config.PRIMARY_COLOR,
-            fg="white"
+            fg="black"
         )
         title_label.pack(side='left', padx=20, pady=15)
         
@@ -42,7 +42,7 @@ class QuestionView(tk.Frame):
             text="← Back",
             font=config.NORMAL_FONT,
             bg=config.SECONDARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.go_back
         )
         back_button.pack(side='right', padx=20, pady=15)
@@ -72,21 +72,10 @@ class QuestionView(tk.Frame):
             text="Add New Question",
             font=config.NORMAL_FONT,
             bg=config.SUCCESS_COLOR,
-            fg="white",
+            fg="black",
             command=self.add_question
         )
         add_button.pack(side='left', padx=(0, 10))
-        
-        # Edit question button
-        edit_button = tk.Button(
-            button_frame,
-            text="Edit Question",
-            font=config.NORMAL_FONT,
-            bg=config.PRIMARY_COLOR,
-            fg="white",
-            command=self.edit_selected_question
-        )
-        edit_button.pack(side='left', padx=(0, 10))
         
         # Delete question button
         delete_button = tk.Button(
@@ -94,7 +83,7 @@ class QuestionView(tk.Frame):
             text="Delete Question",
             font=config.NORMAL_FONT,
             bg=config.ERROR_COLOR,
-            fg="white",
+            fg="black",
             command=self.delete_selected_question
         )
         delete_button.pack(side='left', padx=(0, 10))
@@ -105,7 +94,7 @@ class QuestionView(tk.Frame):
             text="Refresh",
             font=config.NORMAL_FONT,
             bg=config.SECONDARY_COLOR,
-            fg="white",
+            fg="black",
             command=self.load_questions
         )
         refresh_button.pack(side='right')
@@ -186,7 +175,7 @@ class QuestionView(tk.Frame):
             if subject_name != 'All':
                 for subject in self.subjects:
                     if subject['name'] == subject_name:
-                        subject_id = subject['id']
+                        subject_id = int(subject['id'])
                         break
             
             # Load questions
@@ -196,7 +185,7 @@ class QuestionView(tk.Frame):
             for question in self.questions:
                 subject_name = "Unknown"
                 for subject in self.subjects:
-                    if subject['id'] == question['subject_id']:
+                    if int(subject['id']) == int(question['subject_id']):
                         subject_name = subject['name']
                         break
                 
@@ -236,21 +225,6 @@ class QuestionView(tk.Frame):
         """Add new question"""
         self.show_question_dialog()
     
-    def edit_selected_question(self):
-        """Edit selected question"""
-        question_id = self.get_selected_question_id()
-        if question_id:
-            try:
-                question = self.api_client.get_question(question_id)
-                if question:
-                    self.show_question_dialog(question)
-                else:
-                    messagebox.showerror("Error", "Question not found")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load question: {str(e)}")
-        else:
-            messagebox.showwarning("Warning", "Please select a question to edit")
-    
     def delete_selected_question(self):
         """Delete selected question"""
         question_id = self.get_selected_question_id()
@@ -270,7 +244,7 @@ class QuestionView(tk.Frame):
         try:
             question = self.api_client.get_question(question_id)
             if question:
-                self.show_question_dialog(question, read_only=True)
+                self.show_question_dialog(question)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load question details: {str(e)}")
     
@@ -357,13 +331,13 @@ class QuestionView(tk.Frame):
                 choice_frame.destroy()
                 choices.remove((choice_var, choice_frame))
             
-            remove_btn = tk.Button(choice_frame, text="Remove", command=remove_choice, font=config.NORMAL_FONT, bg=config.ERROR_COLOR, fg="white")
+            remove_btn = tk.Button(choice_frame, text="Remove", command=remove_choice, font=config.NORMAL_FONT, bg=config.ERROR_COLOR, fg="black")
             remove_btn.pack(side='right')
             
             choices.append((choice_var, choice_frame))
         
         # Add choice button
-        tk.Button(choices_container, text="Add Choice", command=add_choice, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="white").pack(pady=5)
+        tk.Button(choices_container, text="Add Choice", command=add_choice, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(pady=5)
         
         # Load existing data if editing
         if question:
@@ -393,6 +367,9 @@ class QuestionView(tk.Frame):
         
         if not read_only:
             def save_question():
+                if not self.user_data.get('role') == 'editor':
+                    messagebox.showerror("Error", "You dont have permission to edit questions")
+                    return;
                 try:
                     # Validate
                     if not subject_var.get():
@@ -407,21 +384,40 @@ class QuestionView(tk.Frame):
                         messagebox.showerror("Error", "Please add at least 2 choices")
                         return
                     
+                    # Check if a correct answer is selected
+                    if correct_choice.get() == -1:
+                        messagebox.showerror("Error", "Please select a correct answer")
+                        return
+                    
+                    # Check if all choices have content
+                    empty_choices = []
+                    for i, (choice_var, _) in enumerate(choices):
+                        if not choice_var.get().strip():
+                            empty_choices.append(i + 1)
+                    
+                    if empty_choices:
+                        if len(empty_choices) == 1:
+                            messagebox.showerror("Error", f"Choice {empty_choices[0]} cannot be empty")
+                        else:
+                            messagebox.showerror("Error", f"Choices {', '.join(map(str, empty_choices))} cannot be empty")
+                        return
+                    
                     # Get subject ID
                     subject_id = None
                     for subject in self.subjects:
                         if subject['name'] == subject_var.get():
-                            subject_id = subject['id']
+                            subject_id = int(subject['id'])
                             break
                     
                     # Prepare choices data
                     choices_data = []
                     for i, (choice_var, _) in enumerate(choices):
-                        if choice_var.get().strip():
+                        content = choice_var.get().strip()
+                        if content:  # Only include non-empty choices
                             choices_data.append({
-                                'content': choice_var.get().strip(),
+                                'content': content,
                                 'is_correct': i == correct_choice.get(),
-                                'position': i
+                                'position': len(choices_data)  # Use sequential position
                             })
                     
                     question_data = {
@@ -448,9 +444,9 @@ class QuestionView(tk.Frame):
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to save question: {str(e)}")
             
-            tk.Button(button_frame, text="Save", command=save_question, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="white").pack(side='left', padx=(0, 10))
+            tk.Button(button_frame, text="Save", command=save_question, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
         
-        tk.Button(button_frame, text="Close", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="white").pack(side='right')
+        tk.Button(button_frame, text="Close", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(side='right')
         
         # Add initial choices if creating new
         if not question and not read_only:
