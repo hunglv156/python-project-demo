@@ -1,134 +1,167 @@
-# Test Management System
+# Hệ Thống Quản Lý Ngân Hàng Đề Thi
 
-Hệ thống quản lý ngân hàng đề thi sử dụng Python với FastAPI (backend) và Tkinter (frontend).
+Một hệ thống quản lý ngân hàng đề thi hoàn chỉnh được xây dựng bằng Python với FastAPI (backend) và Tkinter (frontend). Hệ thống hỗ trợ import đề thi từ file DOCX, quản lý câu hỏi, tạo đề thi tự động với xáo trộn đáp án và hiển thị ảnh.
 
-## Tính năng
+## 🚀 Tính Năng Chính
 
-### Phân quyền người dùng
+### 👥 Phân Quyền Người Dùng
 
-- **Người nhập đề (Importer)**: Import file DOCX vào database
-- **Người sửa ngân hàng đề (Editor)**: Quản lý câu hỏi (CRUD) - Thêm, sửa, xóa câu hỏi
-- **Người sinh đề thi (Generator)**: Tạo đề thi với xáo trộn đáp án - Tạo đề thi mới và thêm phiên bản với đáp án được xáo trộn
+- **Importer**: Import file DOCX vào database
+- **Editor**: Quản lý câu hỏi (CRUD) - Thêm, sửa, xóa câu hỏi
+- **Generator**: Tạo đề thi với xáo trộn đáp án tự động
 
-### Chức năng chính
+### 🎯 Chức Năng Chính
 
-1. **Authentication**: Đăng nhập với username/password
-2. **Import DOCX**: Upload và parse file DOCX theo template
-3. **Question Management**: CRUD operations đầy đủ cho câu hỏi (Create, Read, Update, Delete)
-4. **Exam Generation**: Tạo đề thi mới và thêm phiên bản với xáo trộn đáp án tự động
-5. **Image Support**: Hiển thị ảnh từ đường dẫn local
-6. **Role-based Access Control**: Phân quyền chức năng theo vai trò người dùng
+- ✅ **Authentication**: Đăng nhập với username/password
+- ✅ **Import DOCX**: Upload và parse file DOCX theo template chuẩn
+- ✅ **Question Management**: CRUD operations đầy đủ cho câu hỏi
+- ✅ **Exam Generation**: Tạo đề thi mới với xáo trộn đáp án tự động
+- ✅ **Image Support**: Hiển thị ảnh trong preview đề thi
+- ✅ **Role-based Access Control**: Phân quyền chức năng theo vai trò
+- ✅ **Exam Preview**: Xem trước đề thi với ảnh và đáp án đúng được highlight
 
-## Cài đặt
+## 🛠️ Cài Đặt
 
-### Yêu cầu hệ thống
+### Yêu Cầu Hệ Thống
 
-- Python 3.13.5
-- PostgreSQL (Docker)
-- Docker
+- Python 3.8+
+- PostgreSQL 12+
+- Docker (khuyến nghị)
 
-### Bước 1: Setup Database
+### Bước 1: Clone Repository
+
+```bash
+git clone <repository-url>
+cd python-project-demo
+```
+
+### Bước 2: Setup Database
 
 ```bash
 # Chạy PostgreSQL container
-docker run --name python_project -e POSTGRES_PASSWORD=python_project -p 5432:5432 -v pgdata:/home/hungle/postgresql/data -d postgres
+docker run --name python_project \
+  -e POSTGRES_PASSWORD=python_project \
+  -p 5432:5432 \
+  -v pgdata:/var/lib/postgresql/data \
+  -d postgres:latest
 
 # Tạo database
-sudo docker exec -it python_project psql -U postgres
-CREATE DATABASE "python_project";
-\quit
+docker exec -it python_project psql -U postgres -c "CREATE DATABASE python_project;"
 
-# Chạy schema
-sudo docker exec -it python_project psql -U postgres -d python_project -f /path/to/database_schema.sql
+# Import schema
+docker exec -i python_project psql -U postgres -d python_project < database_schema.sql
 ```
 
-### Bước 2: Cài đặt dependencies
+### Bước 3: Cài Đặt Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Bước 3: Tạo thư mục cần thiết
+### Bước 4: Tạo Thư Mục Cần Thiết
 
 ```bash
-mkdir images uploads
+mkdir -p images uploads
 ```
 
-## Sử dụng
+## 🚀 Sử Dụng
 
-### Chạy ứng dụng
+### Khởi Chạy Ứng Dụng
 
 ```bash
 python main.py
 ```
 
-### Tài khoản mẫu
+### Tài Khoản Mẫu
 
-- **Username**: importer, **Password**: 123, **Role**: importer
-- **Username**: editor, **Password**: 123, **Role**: editor
-- **Username**: generator, **Password**: 123, **Role**: generator
+| Username    | Password | Role      | Chức Năng        |
+| ----------- | -------- | --------- | ---------------- |
+| `1`  | `1`    | Importer  | Import file DOCX |
+| `2`    | `2`    | Editor    | Quản lý câu hỏi  |
+| `3` | `3`    | Generator | Tạo đề thi       |
 
-### Hướng dẫn sử dụng
+## 📖 Hướng Dẫn Sử Dụng
 
-#### Editor Role - Quản lý câu hỏi (CRUD)
+### 🔧 Editor Role - Quản Lý Câu Hỏi
 
-1. **Đăng nhập** với tài khoản editor
+1. **Đăng nhập** với tài khoản `editor`
 2. **Chọn "Manage Questions (CRUD)"** từ menu
 3. **Thêm câu hỏi mới**:
+
    - Click "Add New Question"
    - Chọn môn học
    - Nhập nội dung câu hỏi
+   - Thêm ảnh (nếu có) bằng cách nhập tên file ảnh
    - Thêm các đáp án và chọn đáp án đúng
    - Click "Save"
-4. **Sửa câu hỏi**:
-   - Chọn câu hỏi từ danh sách
-   - Click "Edit Question"
-   - Chỉnh sửa thông tin
-   - Click "Save"
-5. **Xóa câu hỏi**:
-   - Chọn câu hỏi từ danh sách
-   - Click "Delete Question"
-   - Xác nhận xóa
 
-#### Generator Role - Tạo đề thi với xáo trộn đáp án
+4. **Sửa/Xóa câu hỏi**:
+   - Chọn câu hỏi từ danh sách
+   - Click "Edit Question" hoặc "Delete Question"
 
-1. **Đăng nhập** với tài khoản generator
+### 🎲 Generator Role - Tạo Đề Thi
+
+1. **Đăng nhập** với tài khoản `generator`
 2. **Chọn "Generate Exam with Mixed Answers"** từ menu
 3. **Tạo đề thi mới**:
-   - Click "Create New Exam"
-   - Nhập thông tin đề thi (mã, tiêu đề, thời gian)
-   - Chọn các câu hỏi từ danh sách
-   - Click "Save" - hệ thống tự động tạo phiên bản đầu tiên với đáp án xáo trộn
-4. **Thêm phiên bản mới**:
-   - Chọn đề thi từ danh sách
-   - Click "Add Version to Exam"
-   - Chọn câu hỏi cho phiên bản mới
-   - Click "Add Version" - hệ thống tạo phiên bản mới với đáp án xáo trộn khác
 
-## Cấu trúc Project
+   - Chọn môn thi
+   - Nhập thời gian thi và số câu hỏi
+   - Click "Tạo Đề Thi"
+   - Hệ thống tự động chọn câu hỏi ngẫu nhiên và xáo trộn đáp án
+
+4. **Xem preview đề thi**:
+   - Double-click vào đề thi trong danh sách
+   - Xem toàn bộ đề thi với ảnh (nếu có)
+   - Đáp án đúng được highlight màu xanh
+
+### 📄 Importer Role - Import DOCX
+
+1. **Đăng nhập** với tài khoản `importer`
+2. **Chọn "Import DOCX"** từ menu
+3. **Upload file DOCX** theo template chuẩn
+4. **Preview** và **Import** vào database
+
+## 📁 Cấu Trúc Project
 
 ```
-project/
-├── backend/                 # FastAPI backend
-│   ├── main.py             # FastAPI app
-│   ├── config.py           # Configuration
+python-project-demo/
+├── backend/                 # FastAPI Backend
+│   ├── main.py             # FastAPI application
+│   ├── config.py           # Configuration settings
 │   ├── database.py         # Database connection
 │   ├── models/             # Database models
-│   ├── routes/             # API routes
-│   └── services/           # Business logic
-├── frontend/               # Tkinter frontend
-│   ├── config.py           # Frontend config
+│   │   ├── user.py         # User model
+│   │   ├── subject.py      # Subject model
+│   │   ├── question.py     # Question model
+│   │   └── exam.py         # Exam model
+│   ├── routes/             # API endpoints
+│   │   ├── auth.py         # Authentication
+│   │   ├── questions.py    # Question management
+│   │   ├── exams.py        # Exam generation
+│   │   └── import_docx.py  # DOCX import
+│   ├── services/           # Business logic
+│   │   └── docx_parser.py  # DOCX parsing
+│   └── utils/              # Utilities
+│       └── subject_code_generator.py
+├── frontend/               # Tkinter Frontend
+│   ├── config.py           # Frontend configuration
 │   ├── api_client.py       # API client
-│   └── views/              # UI views
-├── images/                 # Thư mục ảnh
-├── uploads/                # File upload tạm
+│   └── views/              # UI Views
+│       ├── login_view.py   # Login screen
+│       ├── dashboard_view.py # Main dashboard
+│       ├── question_view.py # Question management
+│       ├── exam_view.py    # Exam generation
+│       └── import_view.py  # DOCX import
+├── images/                 # Image files
+├── uploads/                # Temporary uploads
 ├── database_schema.sql     # Database schema
-├── requirements.txt        # Dependencies
-├── main.py                 # Main application
+├── requirements.txt        # Python dependencies
+├── main.py                 # Application entry point
 └── README.md              # Documentation
 ```
 
-## API Endpoints
+## 🔌 API Endpoints
 
 ### Authentication
 
@@ -137,33 +170,34 @@ project/
 
 ### Subjects
 
-- `GET /subjects/` - Lấy tất cả subjects
-- `GET /subjects/{subject_id}` - Lấy subject theo ID
-- `POST /subjects/` - Tạo subject mới
+- `GET /subjects/` - Lấy tất cả môn học
+- `GET /subjects/{subject_id}` - Lấy môn học theo ID
+- `POST /subjects/` - Tạo môn học mới
 
 ### Questions
 
-- `GET /questions/` - Lấy tất cả questions
-- `GET /questions/{question_id}` - Lấy question theo ID
-- `POST /questions/` - Tạo question mới
-- `PUT /questions/{question_id}` - Cập nhật question
-- `DELETE /questions/{question_id}` - Xóa question
+- `GET /questions/` - Lấy tất cả câu hỏi
+- `GET /questions/{question_id}` - Lấy câu hỏi theo ID
+- `POST /questions/` - Tạo câu hỏi mới
+- `PUT /questions/{question_id}` - Cập nhật câu hỏi
+- `DELETE /questions/{question_id}` - Xóa câu hỏi
 
 ### Exams
 
-- `GET /exams/` - Lấy tất cả exams
-- `GET /exams/{exam_id}` - Lấy exam theo ID
-- `POST /exams/` - Tạo exam mới
-- `POST /exams/{exam_id}/versions` - Thêm version cho exam
+- `GET /exams/` - Lấy tất cả đề thi
+- `GET /exams/{exam_id}` - Lấy đề thi theo ID
+- `POST /exams/` - Tạo đề thi mới
+- `GET /exams/{exam_id}/preview` - Xem preview đề thi
+- `POST /exams/{exam_id}/versions` - Thêm version cho đề thi
 
 ### Import
 
 - `POST /import/preview` - Preview DOCX file
 - `POST /import/docx` - Import DOCX file
 
-## Template DOCX Format
+## 📋 Template DOCX Format
 
-File DOCX phải theo format sau:
+File DOCX phải theo format chuẩn:
 
 ```
 Subject: ISC
@@ -184,72 +218,120 @@ UNIT: Chapter1
 MIX CHOICES: Yes
 ```
 
-## Database Schema
+### Quy Tắc Format
+
+- **Subject**: Tên môn học
+- **Number of Quiz**: Số lượng câu hỏi
+- **Lecturer**: Tên giảng viên
+- **Date**: Ngày tháng năm
+- **QN=**: Số thứ tự câu hỏi
+- **[file:filename.jpg]**: Tham chiếu ảnh (tùy chọn)
+- **ANSWER**: Đáp án đúng (A, B, C, D)
+- **MARK**: Điểm câu hỏi
+- **UNIT**: Đơn vị bài học
+- **MIX CHOICES**: Có xáo trộn đáp án không (Yes/No)
+
+## 🗄️ Database Schema
 
 ### Tables
 
 - `users` - Thông tin người dùng
 - `subjects` - Môn học
-- `questions` - Câu hỏi
+- `questions` - Câu hỏi (bao gồm trường image)
 - `choices` - Đáp án
 - `exams` - Khuôn đề
 - `exam_versions` - Phiên bản đề
 - `exam_version_questions` - Snapshot câu hỏi sau xáo trộn
 
-## Tính năng bảo mật
+## 🔒 Bảo Mật
 
-- Password hashing với bcrypt
-- Role-based access control
-- Input validation
-- Error handling
+- **Password Hashing**: Sử dụng bcrypt để mã hóa mật khẩu
+- **Role-based Access Control**: Phân quyền theo vai trò
+- **Input Validation**: Kiểm tra dữ liệu đầu vào
+- **Error Handling**: Xử lý lỗi an toàn
 
-## Testing
+## 🧪 Testing
 
 ### Test CRUD và Exam Generation
-
-Chạy script test để kiểm tra các chức năng mới:
 
 ```bash
 python test_crud_and_exam_generation.py
 ```
 
-Script này sẽ test:
+Script test sẽ kiểm tra:
 
-- CRUD operations cho câu hỏi (Create, Read, Update, Delete)
+- CRUD operations cho câu hỏi
 - Tạo đề thi với xáo trộn đáp án
 - Thêm phiên bản mới cho đề thi
+- Hiển thị ảnh trong preview
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### Lỗi kết nối database
+### Lỗi Kết Nối Database
 
-- Kiểm tra PostgreSQL container có đang chạy không
-- Kiểm tra connection string trong `backend/config.py`
+```bash
+# Kiểm tra PostgreSQL container
+docker ps | grep python_project
 
-### Lỗi import DOCX
+# Kiểm tra logs
+docker logs python_project
+```
+
+### Lỗi Import DOCX
 
 - Kiểm tra format file DOCX có đúng template không
 - Kiểm tra thư mục `uploads/` có tồn tại không
+- Kiểm tra quyền ghi file
 
-### Lỗi hiển thị ảnh
+### Lỗi Hiển Thị Ảnh
 
 - Kiểm tra thư mục `images/` có tồn tại không
-- Kiểm tra đường dẫn ảnh trong database
+- Kiểm tra tên file ảnh trong database có khớp với file thực tế không
+- Kiểm tra quyền đọc file ảnh
 
-### Lỗi CRUD operations
+### Lỗi CRUD Operations
 
-- Kiểm tra quyền truy cập database
 - Kiểm tra API server có đang chạy không
+- Kiểm tra quyền truy cập database
 - Kiểm tra log lỗi trong console
 
-## Contributing
+## 📝 Changelog
+
+### Version 2.0.0
+
+- ✅ Thêm hỗ trợ hiển thị ảnh trong preview đề thi
+- ✅ Cải thiện UI/UX cho exam preview
+- ✅ Thêm validation cho số câu hỏi
+- ✅ Cập nhật dependencies
+
+### Version 1.0.0
+
+- ✅ Hệ thống authentication
+- ✅ Import DOCX
+- ✅ CRUD operations cho câu hỏi
+- ✅ Tạo đề thi với xáo trộn đáp án
+- ✅ Role-based access control
+
+## 🤝 Contributing
 
 1. Fork project
-2. Tạo feature branch
-3. Commit changes
-4. Push to branch
+2. Tạo feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Tạo Pull Request
 
-## License
+## 📄 License
 
-MIT License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## 📞 Support
+
+Nếu bạn gặp vấn đề, vui lòng:
+
+1. Kiểm tra phần Troubleshooting
+2. Tạo issue trên GitHub
+3. Liên hệ maintainer
+
+---
+
+**Made with ❤️ by Python Team**
