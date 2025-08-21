@@ -1,9 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, Depends, Request
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from ..models.question import Question, Choice
-from ..models.user import User
-from ..middleware.auth import require_auth, optional_auth, require_subject_access, get_user_subjects_filter
+from ..models.user_subject import UserSubject
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
@@ -41,32 +40,39 @@ class CreateQuestionRequest(BaseModel):
 
 @router.get("/", response_model=List[QuestionResponse])
 async def get_questions(
-    request: Request,
     subject_id: Optional[int] = Query(None),
-    current_user: User = Depends(optional_auth)
+    user_id: Optional[int] = Query(None)
 ):
-    """Lấy tất cả questions, có thể filter theo subject"""
+    """Lấy questions theo subject_id và user_id"""
     try:
-        # Nếu không có user đăng nhập, trả về tất cả câu hỏi
-        if not current_user:
-            questions = Question.get_all(subject_id)
-            return [QuestionResponse(**question.to_dict()) for question in questions]
-        
-        # Kiểm tra quyền truy cập môn học
-        if subject_id:
-            require_subject_access(request, subject_id)
-        else:
-            # Nếu không filter theo subject, chỉ trả về môn học user có quyền
-            allowed_subjects = get_user_subjects_filter(request)
-            if allowed_subjects:
+        if user_id:
+            # Lấy môn học được phân công cho user
+            user_subject_ids = UserSubject.get_user_subjects(user_id)
+            
+            if not user_subject_ids:
+                # User không có môn học được phân công (như importer), trả về tất cả
+                questions = Question.get_all(subject_id)
+                return [QuestionResponse(**question.to_dict()) for question in questions]
+            
+            if subject_id:
+                # Kiểm tra user có quyền truy cập môn học này không
+                if subject_id not in user_subject_ids:
+                    raise HTTPException(status_code=403, detail="Môn học này không thuộc bạn quản lý")
+                # Lấy câu hỏi của môn học cụ thể
+                questions = Question.get_all(subject_id)
+            else:
+                # Lấy câu hỏi của tất cả môn học được phân công
                 questions = []
-                for subj_id in allowed_subjects:
+                for subj_id in user_subject_ids:
                     subj_questions = Question.get_all(subj_id)
                     questions.extend(subj_questions)
-                return [QuestionResponse(**question.to_dict()) for question in questions]
+        else:
+            # Không có user_id thì trả về tất cả
+            questions = Question.get_all(subject_id)
         
-        questions = Question.get_all(subject_id)
         return [QuestionResponse(**question.to_dict()) for question in questions]
+    except HTTPException:
+        raise
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
@@ -74,24 +80,15 @@ async def get_questions(
         # Cung cấp thông báo lỗi cụ thể hơn
         if "connection" in str(e).lower() or "database" in str(e).lower():
             raise HTTPException(status_code=503, detail="Database connection error. Please try again later.")
-        elif "permission" in str(e).lower():
-            raise HTTPException(status_code=403, detail="Permission denied. You don't have access to this resource.")
         else:
             raise HTTPException(status_code=500, detail="An error occurred while loading questions. Please try again.")
 
 @router.get("/{question_id}", response_model=QuestionResponse)
-async def get_question(
-    question_id: int,
-    request: Request,
-    current_user: User = Depends(optional_auth)
-):
+async def get_question(question_id: int):
     """Lấy question theo ID"""
     try:
         question = Question.get_by_id(question_id)
         if question:
-            # Nếu có user đăng nhập, kiểm tra quyền truy cập môn học
-            if current_user:
-                require_subject_access(request, question.subject_id)
             return QuestionResponse(**question.to_dict())
         else:
             raise HTTPException(status_code=404, detail="Question not found")
@@ -105,16 +102,9 @@ async def get_question(
             raise HTTPException(status_code=500, detail="An error occurred while loading the question. Please try again.")
 
 @router.post("/", response_model=QuestionResponse)
-async def create_question(
-    request: CreateQuestionRequest,
-    req: Request,
-    current_user: User = Depends(require_auth)
-):
+async def create_question(request: CreateQuestionRequest):
     """Tạo question mới"""
     try:
-        # Kiểm tra quyền truy cập môn học
-        require_subject_access(req, request.subject_id)
-        
         question = Question.create(
             subject_id=request.subject_id,
             unit_text=request.unit_text,
@@ -143,12 +133,7 @@ async def create_question(
             raise HTTPException(status_code=500, detail="An error occurred while creating the question. Please try again.")
 
 @router.put("/{question_id}")
-async def update_question(
-    question_id: int, 
-    request: CreateQuestionRequest,
-    req: Request,
-    current_user: User = Depends(require_auth)
-):
+async def update_question(question_id: int, request: CreateQuestionRequest):
     """Cập nhật question"""
     try:
         import logging
@@ -159,9 +144,6 @@ async def update_question(
         if not question:
             logger.error(f"Question {question_id} not found")
             raise HTTPException(status_code=404, detail="Question not found")
-        
-        # Kiểm tra quyền truy cập môn học
-        require_subject_access(req, question.subject_id)
         
         logger.info(f"Found question {question_id}, updating...")
         success = question.update(
@@ -194,19 +176,12 @@ async def update_question(
             raise HTTPException(status_code=500, detail="An error occurred while updating the question. Please try again.")
 
 @router.delete("/{question_id}")
-async def delete_question(
-    question_id: int,
-    req: Request,
-    current_user: User = Depends(require_auth)
-):
+async def delete_question(question_id: int):
     """Xóa question"""
     try:
         question = Question.get_by_id(question_id)
         if not question:
             raise HTTPException(status_code=404, detail="Question not found")
-        
-        # Kiểm tra quyền truy cập môn học
-        require_subject_access(req, question.subject_id)
         
         success = question.delete()
         if success:

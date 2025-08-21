@@ -10,6 +10,10 @@ class DocxParser:
         self.questions = []
         self.current_question = None
         self.current_choices = []
+        self.file_metadata = {
+            'subject': None,
+            'lecturer': None
+        }
     
     def parse_docx(self, file_path: str) -> List[Dict[str, Any]]:
         """Parse DOCX file và trả về danh sách questions"""
@@ -18,6 +22,10 @@ class DocxParser:
             self.questions = []
             self.current_question = None
             self.current_choices = []
+            self.file_metadata = {
+                'subject': None,
+                'lecturer': None
+            }
             
             logger.info(f"Parsing DOCX file: {file_path}")
             logger.info(f"Total paragraphs: {len(doc.paragraphs)}")
@@ -31,9 +39,10 @@ class DocxParser:
                 
                 logger.info(f"Paragraph {i}: '{text}'")
                 
-                # Parse metadata
-                if self._is_metadata(text):
-                    logger.info(f"  -> Metadata: {text}")
+                # Parse file metadata first
+                if self._is_file_metadata(text):
+                    logger.info(f"  -> File metadata: {text}")
+                    self._parse_file_metadata(text)
                     continue
                 
                 # Parse question
@@ -67,21 +76,40 @@ class DocxParser:
             self._save_current_question()
             
             logger.info(f"Parsed {len(self.questions)} questions")
+            logger.info(f"File metadata: {self.file_metadata}")
             return self.questions
             
         except Exception as e:
             logger.error(f"Error parsing DOCX file: {e}")
             raise
     
-    def _is_metadata(self, text: str) -> bool:
+    def _is_file_metadata(self, text: str) -> bool:
         """Kiểm tra có phải metadata của file không"""
         metadata_patterns = [
             r'^Subject:\s*',
-            r'^Number of Quiz:\s*',
-            r'^Lecturer:\s*',
-            r'^Date:\s*'
+            r'^Lecturer:\s*'
         ]
         return any(re.match(pattern, text) for pattern in metadata_patterns)
+    
+    def _parse_file_metadata(self, text: str):
+        """Parse metadata của file"""
+        # Parse Subject
+        subject_match = re.match(r'^Subject:\s*(.+)', text)
+        if subject_match:
+            self.file_metadata['subject'] = subject_match.group(1).strip()
+            logger.info(f"Found subject: {self.file_metadata['subject']}")
+        
+        # Parse Lecturer
+        lecturer_match = re.match(r'^Lecturer:\s*(.+)', text)
+        if lecturer_match:
+            self.file_metadata['lecturer'] = lecturer_match.group(1).strip()
+            logger.info(f"Found lecturer: {self.file_metadata['lecturer']}")
+    
+    def get_file_metadata(self) -> Dict[str, Any]:
+        """Lấy metadata của file"""
+        return self.file_metadata.copy()
+    
+
     
     def _is_question_start(self, text: str) -> bool:
         """Kiểm tra có phải bắt đầu câu hỏi không"""
@@ -362,29 +390,45 @@ class DocxParser:
     
     def validate_questions(self) -> Dict[str, Any]:
         """Validate tất cả questions"""
-        errors = []
+        critical_errors = []  # Lỗi nghiêm trọng - không cho preview
+        errors = []           # Lỗi thường - vẫn cho preview
         warnings = []
         
+        # Kiểm tra metadata file
+        if not self.file_metadata['subject']:
+            critical_errors.append("Missing Subject information in file")
+        
+        # Kiểm tra có câu hỏi nào không
+        if len(self.questions) == 0:
+            critical_errors.append("No questions found in file")
+            return {
+                'valid': False,
+                'critical_errors': critical_errors,
+                'errors': errors,
+                'warnings': warnings,
+                'total_questions': 0
+            }
+        
         for question in self.questions:
-            # Check required fields
+            # Lỗi nghiêm trọng - không cho preview
             if not question['question_text']:
-                errors.append(f"Question {question['question_number']}: Missing question text")
+                critical_errors.append(f"Question {question['question_number']}: Missing question text")
             
             if len(question['choices']) < 2:
-                errors.append(f"Question {question['question_number']}: Need at least 2 choices")
+                critical_errors.append(f"Question {question['question_number']}: Need at least 2 choices")
             
             if not question['answer']:
-                errors.append(f"Question {question['question_number']}: Missing answer")
+                critical_errors.append(f"Question {question['question_number']}: Missing answer")
             
             # Check answer exists in choices
             answer_exists = any(choice['letter'] == question['answer'] for choice in question['choices'])
             if not answer_exists:
-                errors.append(f"Question {question['question_number']}: Answer '{question['answer']}' not found in choices")
+                critical_errors.append(f"Question {question['question_number']}: Answer '{question['answer']}' not found in choices")
             
             # Check for duplicate choice letters
             choice_letters = [choice['letter'] for choice in question['choices']]
             if len(choice_letters) != len(set(choice_letters)):
-                errors.append(f"Question {question['question_number']}: Duplicate choice letters")
+                critical_errors.append(f"Question {question['question_number']}: Duplicate choice letters")
             
             # Check for empty choices
             empty_choices = []
@@ -394,12 +438,20 @@ class DocxParser:
             
             if empty_choices:
                 if len(empty_choices) == 1:
-                    errors.append(f"Question {question['question_number']}: Empty choice {empty_choices[0]}")
+                    critical_errors.append(f"Question {question['question_number']}: Empty choice {empty_choices[0]}")
                 else:
-                    errors.append(f"Question {question['question_number']}: Empty choices {', '.join(empty_choices)}")
+                    critical_errors.append(f"Question {question['question_number']}: Empty choices {', '.join(empty_choices)}")
+            
+            # Lỗi thường - vẫn cho preview
+            if question['mark'] <= 0:
+                errors.append(f"Question {question['question_number']}: Invalid mark (must be > 0)")
+            
+            if not question['unit']:
+                warnings.append(f"Question {question['question_number']}: No unit specified")
         
         return {
-            'valid': len(errors) == 0,
+            'valid': len(critical_errors) == 0,
+            'critical_errors': critical_errors,
             'errors': errors,
             'warnings': warnings,
             'total_questions': len(self.questions)

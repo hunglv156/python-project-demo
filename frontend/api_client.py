@@ -70,9 +70,12 @@ class APIClient:
         return self._make_request("POST", "/auth/logout")
     
     # Subjects
-    def get_subjects(self) -> List[Dict[str, Any]]:
-        """Get all subjects"""
-        return self._make_request("GET", "/subjects/")
+    def get_subjects(self, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get subjects, optionally filtered by user_id"""
+        params = {}
+        if user_id:
+            params["user_id"] = user_id
+        return self._make_request("GET", "/subjects/", params=params)
     
     def get_subject(self, subject_id: int) -> Dict[str, Any]:
         """Get subject by ID"""
@@ -83,11 +86,13 @@ class APIClient:
         return self._make_request("POST", "/subjects/", params={"name": name})
     
     # Questions
-    def get_questions(self, subject_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Get questions, optionally filtered by subject"""
+    def get_questions(self, subject_id: Optional[int] = None, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get questions, optionally filtered by subject and user_id"""
         params = {}
         if subject_id:
             params["subject_id"] = subject_id
+        if user_id:
+            params["user_id"] = user_id
         return self._make_request("GET", "/questions/", params=params)
     
     def get_question(self, question_id: int) -> Dict[str, Any]:
@@ -127,6 +132,10 @@ class APIClient:
         """Get exam version by ID"""
         return self._make_request("GET", f"/exams/versions/{version_id}")
     
+    def get_exam_preview(self, exam_id: int) -> Dict[str, Any]:
+        """Get exam preview with questions and shuffled choices"""
+        return self._make_request("GET", f"/exams/{exam_id}/preview")
+    
     # Import DOCX
     def preview_docx(self, file_path: str) -> Dict[str, Any]:
         """Preview DOCX file"""
@@ -134,12 +143,11 @@ class APIClient:
             files = {'file': f}
             return self._make_request("POST", "/import/preview", files=files)
     
-    def import_docx(self, file_path: str, subject_id: int, created_by: int) -> Dict[str, Any]:
+    def import_docx(self, file_path: str, created_by: int) -> Dict[str, Any]:
         """Import DOCX file"""
         with open(file_path, 'rb') as f:
             files = {'file': f}
             data = {
-                'subject_id': subject_id,
                 'created_by': created_by
             }
             return self._make_request("POST", "/import/docx", files=files, data=data) 

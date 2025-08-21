@@ -45,6 +45,18 @@ class DashboardView(tk.Frame):
         )
         user_label.pack(side='right', padx=20, pady=15)
         
+        # Show assigned subjects for editor
+        if self.user_data.get('role') == 'editor' and self.user_data.get('assigned_subjects'):
+            subjects_info = "Assigned: " + ", ".join([s.get('name', '') for s in self.user_data.get('assigned_subjects', [])])
+            subjects_label = tk.Label(
+                header_frame,
+                text=subjects_info,
+                font=config.NORMAL_FONT,
+                bg=config.PRIMARY_COLOR,
+                fg="black"
+            )
+            subjects_label.pack(side='right', padx=20, pady=(0, 5))
+        
         # Content area
         content_frame = tk.Frame(main_frame, bg=config.BACKGROUND_COLOR)
         content_frame.pack(expand=True, fill='both', padx=20, pady=20)

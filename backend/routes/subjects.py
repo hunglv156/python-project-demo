@@ -1,9 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from ..models.subject import Subject
-from ..models.user import User
-from ..middleware.auth import require_auth, optional_auth, get_user_subjects_filter
+from ..models.user_subject import UserSubject
 
 router = APIRouter(prefix="/subjects", tags=["Subjects"])
 
@@ -13,30 +12,27 @@ class SubjectResponse(BaseModel):
     created_at: str
 
 @router.get("/", response_model=List[SubjectResponse])
-async def get_subjects(
-    request: Request,
-    current_user: User = Depends(optional_auth)
-):
-    """Lấy tất cả subjects"""
+async def get_subjects(user_id: Optional[int] = Query(None)):
+    """Lấy subjects theo user_id"""
     try:
-        # Nếu không có user đăng nhập, trả về tất cả môn học
-        if not current_user:
-            subjects = Subject.get_all()
-            return [SubjectResponse(**subject.to_dict()) for subject in subjects]
-        
-        # Lấy filter môn học cho user hiện tại
-        allowed_subjects = get_user_subjects_filter(request)
-        
-        if allowed_subjects:
-            # Editor chỉ thấy môn học được phân công
+        if user_id:
+            # Lấy môn học được phân công cho user
+            subject_ids = UserSubject.get_user_subjects(user_id)
+            
+            # Nếu user không có môn học được phân công (như importer), trả về tất cả
+            if not subject_ids:
+                subjects = Subject.get_all()
+                return [SubjectResponse(**subject.to_dict()) for subject in subjects]
+            
+            # Nếu có môn học được phân công, trả về các môn đó
             subjects = []
-            for subject_id in allowed_subjects:
+            for subject_id in subject_ids:
                 subject = Subject.get_by_id(subject_id)
                 if subject:
                     subjects.append(subject)
             return [SubjectResponse(**subject.to_dict()) for subject in subjects]
         else:
-            # Admin thấy tất cả môn học
+            # Không có user_id thì trả về tất cả
             subjects = Subject.get_all()
             return [SubjectResponse(**subject.to_dict()) for subject in subjects]
     except Exception as e:

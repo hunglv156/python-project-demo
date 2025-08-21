@@ -96,6 +96,30 @@ class Question:
                 raise ValueError(f"Failed to load questions: {str(e)}")
     
     @staticmethod
+    def check_duplicate_question(subject_id: int, question_text: str) -> bool:
+        """Kiểm tra xem câu hỏi đã tồn tại trong subject chưa"""
+        try:
+            # Normalize question text for comparison (remove extra spaces, lowercase)
+            normalized_text = ' '.join(question_text.strip().lower().split())
+            
+            query = """
+                SELECT COUNT(*) as count 
+                FROM questions 
+                WHERE subject_id = %s 
+                AND LOWER(TRIM(question)) = %s
+            """
+            result = db.execute_single(query, (subject_id, normalized_text))
+            
+            if result and result.get('count', 0) > 0:
+                logger.info(f"Duplicate question found in subject {subject_id}: {question_text[:50]}...")
+                return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Error checking duplicate question: {e}")
+            return False
+    
+    @staticmethod
     def get_by_id(question_id: int) -> Optional['Question']:
         """Lấy question theo ID"""
         try:
@@ -125,6 +149,10 @@ class Question:
         """Tạo question mới với choices"""
         try:
             logger.info(f"Creating question with subject_id={subject_id}, unit_text='{unit_text}', question='{question[:50]}...'")
+            
+            # Check for duplicate question
+            if Question.check_duplicate_question(subject_id, question):
+                raise ValueError(f"Question already exists in this subject: {question[:100]}...")
             
             # Validate choices
             if not choices or len(choices) < 2:

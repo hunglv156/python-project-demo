@@ -109,7 +109,22 @@ class LoginView(tk.Frame):
             
             if response.get('success'):
                 user_data = response.get('user', {})
-                messagebox.showinfo("Success", f"Welcome, {user_data.get('username', 'User')}!")
+                assigned_subjects = response.get('assigned_subjects', [])
+                
+                # Tạo message welcome
+                welcome_msg = f"Welcome, {user_data.get('username', 'User')}!\n"
+                welcome_msg += f"Role: {user_data.get('role', 'Unknown')}"
+                
+                # Nếu là editor, hiển thị môn học được phân công
+                if user_data.get('role') == 'editor' and assigned_subjects:
+                    welcome_msg += f"\n\nAssigned subjects:"
+                    for subject in assigned_subjects:
+                        welcome_msg += f"\n- {subject.get('name', 'Unknown')}"
+                
+                messagebox.showinfo("Success", welcome_msg)
+                
+                # Thêm thông tin môn học vào user_data
+                user_data['assigned_subjects'] = assigned_subjects
                 self.on_login_success(user_data)
             else:
                 messagebox.showerror("Error", response.get('message', 'Login failed'))

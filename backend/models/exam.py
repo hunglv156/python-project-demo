@@ -33,44 +33,62 @@ class ExamVersion:
     @staticmethod
     def create(exam_id: int, version_code: str, questions: List[int]) -> 'ExamVersion':
         """Tạo exam version mới với shuffle choices"""
-        shuffle_seed = random.randint(1, 1000000)
-        
-        # Insert exam version
-        query = """
-            INSERT INTO exam_versions (exam_id, version_code, shuffle_seed)
-            VALUES (%s, %s, %s) RETURNING *
-        """
-        result = db.execute_single(query, (exam_id, version_code, shuffle_seed))
-        
-        if result:
-            exam_version = ExamVersion(**result)
+        try:
+            shuffle_seed = random.randint(1, 1000000)
             
-            # Insert questions với shuffled choices
-            for question_id in questions:
-                # Lấy choices của question
-                from .question import Choice
-                choices = Choice.get_by_question_id(question_id)
-                
-                # Shuffle choices với seed
-                random.seed(shuffle_seed + question_id)
-                shuffled_choices = choices.copy()
-                random.shuffle(shuffled_choices)
-                
-                # Lưu thứ tự mới
-                choice_order = [choice.id for choice in shuffled_choices]
-                choice_order_json = json.dumps(choice_order)
-                
-                # Insert vào exam_version_questions
-                evq_query = """
-                    INSERT INTO exam_version_questions (exam_version_id, question_id, choice_order_json)
-                    VALUES (%s, %s, %s) RETURNING *
-                """
-                evq_result = db.execute_single(evq_query, (exam_version.id, question_id, choice_order_json))
-                if evq_result:
-                    exam_version.questions.append(ExamVersionQuestion(**evq_result))
+            # Insert exam version
+            query = """
+                INSERT INTO exam_versions (exam_id, version_code, shuffle_seed)
+                VALUES (%s, %s, %s) RETURNING *
+            """
+            result = db.execute_single(query, (exam_id, version_code, shuffle_seed))
             
-            return exam_version
-        return None
+            if result:
+                # Convert datetime to string if needed
+                if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
+                    result['created_at'] = result['created_at'].isoformat()
+                
+                exam_version = ExamVersion(**result)
+                
+                # Insert questions với shuffled choices
+                for question_id in questions:
+                    # Lấy question và choices
+                    from .question import Question, Choice
+                    question = Question.get_by_id(question_id)
+                    choices = Choice.get_by_question_id(question_id)
+                    
+                    if not question or not choices:
+                        continue
+                    
+                    # Chỉ shuffle nếu mix_choice = true
+                    if question.mix_choices:
+                        # Shuffle choices với seed
+                        random.seed(shuffle_seed + question_id)
+                        shuffled_choices = choices.copy()
+                        random.shuffle(shuffled_choices)
+                        
+                        # Lưu thứ tự mới
+                        choice_order = [choice.id for choice in shuffled_choices]
+                        choice_order_json = json.dumps(choice_order)
+                    else:
+                        # Giữ nguyên thứ tự gốc
+                        choice_order = [choice.id for choice in choices]
+                        choice_order_json = json.dumps(choice_order)
+                    
+                    # Insert vào exam_version_questions
+                    evq_query = """
+                        INSERT INTO exam_version_questions (exam_version_id, question_id, choice_order_json)
+                        VALUES (%s, %s, %s) RETURNING *
+                    """
+                    evq_result = db.execute_single(evq_query, (exam_version.id, question_id, choice_order_json))
+                    if evq_result:
+                        exam_version.questions.append(ExamVersionQuestion(**evq_result))
+                
+                return exam_version
+            return None
+        except Exception as e:
+            print(f"Error creating exam version: {e}")
+            raise
     
     @staticmethod
     def get_by_id(version_id: int) -> Optional['ExamVersion']:
@@ -85,6 +103,56 @@ class ExamVersion:
             exam_version.questions = [ExamVersionQuestion(**evq_result) for evq_result in evq_results]
             return exam_version
         return None
+    
+    def get_questions_with_shuffled_choices(self) -> List[Dict[str, Any]]:
+        """Lấy questions với choices đã được shuffle"""
+        from .question import Question, Choice
+        
+        questions_data = []
+        
+        for evq in self.questions:
+            # Lấy question
+            question = Question.get_by_id(evq.question_id)
+            if not question:
+                continue
+            
+            # Lấy choices gốc
+            original_choices = Choice.get_by_question_id(question.id)
+            
+            # Parse shuffled order
+            try:
+                shuffled_order = json.loads(evq.choice_order_json)
+            except:
+                shuffled_order = [choice.id for choice in original_choices]
+            
+            # Tạo choices theo thứ tự đã shuffle
+            shuffled_choices = []
+            for choice_id in shuffled_order:
+                for choice in original_choices:
+                    if choice.id == choice_id:
+                        shuffled_choices.append(choice)
+                        break
+            
+            # Tạo question data
+            question_data = {
+                'question_text': question.question,
+                'unit': question.unit_text,
+                'mark': float(question.mark),
+                'image': question.image,
+                'choices': []
+            }
+            
+            # Thêm choices với thứ tự mới
+            for i, choice in enumerate(shuffled_choices):
+                question_data['choices'].append({
+                    'letter': chr(ord('a') + i),  # a, b, c, d...
+                    'content': choice.content,
+                    'is_correct': choice.is_correct
+                })
+            
+            questions_data.append(question_data)
+        
+        return questions_data
     
     def to_dict(self) -> Dict[str, Any]:
         # Convert datetime to string if it's a datetime object
@@ -121,24 +189,32 @@ class Exam:
     def create(subject_id: int, code: str, title: str, duration_minutes: int, 
                num_questions: int, generated_by: int, question_ids: List[int]) -> 'Exam':
         """Tạo exam mới"""
-        # Insert exam
-        query = """
-            INSERT INTO exams (subject_id, code, title, duration_minutes, num_questions, generated_by)
-            VALUES (%s, %s, %s, %s, %s, %s) RETURNING *
-        """
-        result = db.execute_single(query, (subject_id, code, title, duration_minutes, num_questions, generated_by))
-        
-        if result:
-            exam = Exam(**result)
+        try:
+            # Insert exam
+            query = """
+                INSERT INTO exams (subject_id, code, title, duration_minutes, num_questions, generated_by)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING *
+            """
+            result = db.execute_single(query, (subject_id, code, title, duration_minutes, num_questions, generated_by))
             
-            # Tạo version đầu tiên
-            version_code = "001"
-            exam_version = ExamVersion.create(exam.id, version_code, question_ids)
-            if exam_version:
-                exam.versions.append(exam_version)
-            
-            return exam
-        return None
+            if result:
+                # Convert datetime to string if needed
+                if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
+                    result['created_at'] = result['created_at'].isoformat()
+                
+                exam = Exam(**result)
+                
+                # Tạo version đầu tiên
+                version_code = "001"
+                exam_version = ExamVersion.create(exam.id, version_code, question_ids)
+                if exam_version:
+                    exam.versions.append(exam_version)
+                
+                return exam
+            return None
+        except Exception as e:
+            print(f"Error creating exam: {e}")
+            raise
     
     @staticmethod
     def get_all() -> List['Exam']:
@@ -170,6 +246,20 @@ class Exam:
             exam.versions = [ExamVersion(**version_result) for version_result in versions_results]
             return exam
         return None
+    
+    def get_versions(self) -> List[ExamVersion]:
+        """Lấy tất cả versions của exam"""
+        query = "SELECT * FROM exam_versions WHERE exam_id = %s ORDER BY version_code"
+        results = db.execute_query(query, (self.id,))
+        versions = []
+        for result in results:
+            version = ExamVersion(**result)
+            # Lấy questions cho version
+            evq_query = "SELECT * FROM exam_version_questions WHERE exam_version_id = %s"
+            evq_results = db.execute_query(evq_query, (version.id,))
+            version.questions = [ExamVersionQuestion(**evq_result) for evq_result in evq_results]
+            versions.append(version)
+        return versions
     
     def add_version(self, question_ids: List[int]) -> Optional[ExamVersion]:
         """Thêm version mới cho exam"""
@@ -203,5 +293,5 @@ class Exam:
             'generated_by': self.generated_by,
             'created_at': created_at,
             'subject_name': self.subject_name,
-            'versions': [v.to_dict() for v in self.versions]
+            'versions': [v.to_dict() for v in self.versions] if self.versions else []
         } 

@@ -55,9 +55,6 @@ class ImportView(tk.Frame):
         # File selection
         self.setup_file_selection(content_frame)
         
-        # Subject selection
-        self.setup_subject_selection(content_frame)
-        
         # Preview area
         self.setup_preview_area(content_frame)
         
@@ -92,66 +89,58 @@ class ImportView(tk.Frame):
         browse_button.pack(side='right', padx=10, pady=10)
     
     def setup_subject_selection(self, parent):
-        """Setup subject selection area"""
-        subject_frame = tk.LabelFrame(parent, text="Subject Selection", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
-        subject_frame.pack(fill='x', pady=(0, 20))
-        
-        # Subject combobox
-        self.subject_var = tk.StringVar()
-        self.subject_combobox = ttk.Combobox(
-            subject_frame,
-            textvariable=self.subject_var,
-            font=config.NORMAL_FONT,
-            state="readonly"
-        )
-        self.subject_combobox.pack(padx=10, pady=10, fill='x')
+        """Setup subject selection area - DEPRECATED"""
+        pass
     
     def setup_preview_area(self, parent):
-        """Setup preview area"""
-        preview_frame = tk.LabelFrame(parent, text="Preview", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
+        """Setup preview area with improved scrolling"""
+        preview_frame = tk.LabelFrame(parent, text="Preview (Read-only)", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
         preview_frame.pack(fill='both', expand=True, pady=(0, 20))
         
-        # Preview text
+        # Create a frame to hold text and scrollbar
+        text_frame = tk.Frame(preview_frame, bg=config.BACKGROUND_COLOR)
+        text_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        # Preview text (read-only) with improved scrolling
         self.preview_text = tk.Text(
-            preview_frame,
+            text_frame,
             font=config.NORMAL_FONT,
             wrap='word',
-            height=15
+            height=20,  # Increased height for better viewing
+            state='disabled',  # Make it read-only
+            cursor='arrow'  # Show arrow cursor instead of text cursor
         )
-        preview_text_scrollbar = ttk.Scrollbar(preview_frame, orient='vertical', command=self.preview_text.yview)
+        
+        # Vertical scrollbar
+        preview_text_scrollbar = ttk.Scrollbar(text_frame, orient='vertical', command=self.preview_text.yview)
         self.preview_text.configure(yscrollcommand=preview_text_scrollbar.set)
         
-        self.preview_text.pack(side='left', fill='both', expand=True, padx=10, pady=10)
-        preview_text_scrollbar.pack(side='right', fill='y', pady=10)
+        # Horizontal scrollbar for long lines
+        preview_text_h_scrollbar = ttk.Scrollbar(text_frame, orient='horizontal', command=self.preview_text.xview)
+        self.preview_text.configure(xscrollcommand=preview_text_h_scrollbar.set)
+        
+        # Pack text and scrollbars
+        self.preview_text.pack(side='left', fill='both', expand=True)
+        preview_text_scrollbar.pack(side='right', fill='y')
+        preview_text_h_scrollbar.pack(side='bottom', fill='x')
     
     def setup_action_buttons(self, parent):
         """Setup action buttons"""
         button_frame = tk.Frame(parent, bg=config.BACKGROUND_COLOR)
         button_frame.pack(fill='x')
         
-        # Preview button
-        preview_button = tk.Button(
-            button_frame,
-            text="Preview",
-            font=config.NORMAL_FONT,
-            bg=config.WARNING_COLOR,
-            fg="black",
-            command=self.preview_file,
-            width=15
-        )
-        preview_button.pack(side='left', padx=(0, 10))
-        
         # Import button
-        import_button = tk.Button(
+        self.import_button = tk.Button(
             button_frame,
             text="Import",
             font=config.NORMAL_FONT,
             bg=config.SUCCESS_COLOR,
             fg="black",
             command=self.import_file,
-            width=15
+            width=15,
+            state='disabled'  # Disabled by default
         )
-        import_button.pack(side='left')
+        self.import_button.pack(side='left')
     
     def browse_file(self):
         """Browse for DOCX file"""
@@ -163,77 +152,134 @@ class ImportView(tk.Frame):
         if file_path:
             self.selected_file = file_path
             self.file_path_var.set(os.path.basename(file_path))
+            # Auto preview when file is selected
+            self.auto_preview_file()
     
     def load_subjects(self):
-        """Load subjects from API"""
-        try:
-            self.subjects = self.api_client.get_subjects()
-            subject_names = [subject['name'] for subject in self.subjects]
-            self.subject_combobox['values'] = subject_names
-            if subject_names:
-                self.subject_combobox.set(subject_names[0])
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load subjects: {str(e)}")
+        """Load subjects from API - DEPRECATED"""
+        pass
     
-    def preview_file(self):
-        """Preview DOCX file"""
+    def auto_preview_file(self):
+        """Auto preview DOCX file when selected"""
         if not self.selected_file:
-            messagebox.showerror("Error", "Please select a file first")
             return
         
         try:
             # Show loading
-            self.config(cursor="wait")
-            self.update()
+            try:
+                self.config(cursor="wait")
+                self.update()
+            except tk.TclError:
+                # Widget might have been destroyed
+                pass
             
             # Call API
             response = self.api_client.preview_docx(self.selected_file)
             
-            if response.get('success'):
-                # Display preview
-                self.display_preview(response)
-            else:
+            # Display preview (kể cả khi có lỗi)
+            self.display_preview(response)
+            
+            # Hiển thị thông báo nếu có lỗi nghiêm trọng
+            if response.get('critical_errors'):
+                messagebox.showerror(
+                    "Critical Errors", 
+                    "File has critical errors and cannot be imported.\n\n" + 
+                    "\n".join(response['critical_errors'])
+                )
+                # Disable import button
+                self.import_button.config(state='disabled')
+            elif not response.get('success'):
                 messagebox.showerror("Error", "Failed to preview file")
+                self.import_button.config(state='disabled')
+            else:
+                # Enable import button if preview successful
+                self.import_button.config(state='normal')
                 
         except Exception as e:
             messagebox.showerror("Error", f"Preview failed: {str(e)}")
+            self.import_button.config(state='disabled')
         finally:
-            self.config(cursor="")
+            try:
+                self.config(cursor="")
+            except tk.TclError:
+                # Widget might have been destroyed
+                pass
+    
+    def preview_file(self):
+        """Preview DOCX file - DEPRECATED"""
+        pass
     
     def display_preview(self, response):
-        """Display preview in text area"""
+        """Display preview in text area with improved scrolling"""
+        # Enable text widget temporarily to update content
+        self.preview_text.config(state='normal')
         self.preview_text.delete(1.0, tk.END)
         
+        # Display file metadata
+        file_metadata = response.get('file_metadata', {})
+        summary = "=== FILE INFORMATION ===\n"
+        summary += f"Subject: {file_metadata.get('subject', 'N/A')}\n"
+        summary += f"Lecturer: {file_metadata.get('lecturer', 'N/A')}\n"
+        summary += "\n"
+        
         # Display summary
-        summary = f"Total Questions: {response.get('total_questions', 0)}\n"
+        summary += "=== SUMMARY ===\n"
+        summary += f"Total Questions: {response.get('total_questions', 0)}\n"
         summary += f"Valid: {response.get('valid', False)}\n\n"
         
+        # Display critical errors (nếu có)
+        if response.get('critical_errors'):
+            summary += "=== CRITICAL ERRORS (Cannot Preview) ===\n"
+            for error in response['critical_errors']:
+                summary += f"❌ {error}\n"
+            summary += "\n"
+        
+        # Display regular errors
         if response.get('errors'):
-            summary += "Errors:\n"
+            summary += "=== ERRORS ===\n"
             for error in response['errors']:
-                summary += f"- {error}\n"
+                summary += f"⚠️ {error}\n"
             summary += "\n"
         
+        # Display warnings
         if response.get('warnings'):
-            summary += "Warnings:\n"
+            summary += "=== WARNINGS ===\n"
             for warning in response['warnings']:
-                summary += f"- {warning}\n"
+                summary += f"⚠️ {warning}\n"
             summary += "\n"
         
-        # Display questions
-        questions = response.get('questions', [])
-        for i, question in enumerate(questions, 1):
-            summary += f"Question {i}:\n"
-            summary += f"Text: {question.get('question_text', 'N/A')}\n"
-            summary += f"Unit: {question.get('unit', 'N/A')}\n"
-            summary += f"Mark: {question.get('mark', 'N/A')}\n"
-            summary += f"Answer: {question.get('answer', 'N/A')}\n"
-            summary += f"Choices: {len(question.get('choices', []))}\n"
-            if question.get('image'):
-                summary += f"Image: {question['image']}\n"
-            summary += "\n"
+        # Display questions (chỉ nếu không có lỗi nghiêm trọng)
+        if not response.get('critical_errors'):
+            questions = response.get('questions', [])
+            summary += "=== QUESTIONS ===\n"
+            for i, question in enumerate(questions, 1):
+                summary += f"Question {i}:\n"
+                summary += f"Text: {question.get('question_text', 'N/A')}\n"
+                summary += f"Unit: {question.get('unit', 'N/A')}\n"
+                summary += f"Mark: {question.get('mark', 'N/A')}\n"
+                summary += f"Mix Choices: {'Yes' if question.get('mix_choices') else 'No'}\n"
+                summary += f"Answer: {question.get('answer', 'N/A').upper()}\n"
+                summary += f"Image: {'Yes' if question.get('image') else 'No'}\n"
+                
+                # Hiển thị chi tiết các đáp án
+                choices = question.get('choices', [])
+                summary += f"Choices ({len(choices)}):\n"
+                for choice in choices:
+                    choice_letter = choice.get('letter', '').upper()
+                    choice_content = choice.get('content', '')
+                    is_correct = choice.get('is_correct', False)
+                    correct_mark = " ✓" if is_correct else ""
+                    summary += f"  {choice_letter}. {choice_content}{correct_mark}\n"
+                
+                summary += "\n"
         
         self.preview_text.insert(1.0, summary)
+        
+        # Scroll to top after inserting content
+        self.preview_text.see("1.0")
+        
+        # Disable text widget again to make it read-only
+        self.preview_text.config(state='disabled')
     
     def import_file(self):
         """Import DOCX file"""
@@ -241,39 +287,31 @@ class ImportView(tk.Frame):
             messagebox.showerror("Error", "Please select a file first")
             return
         
-        if not self.subject_var.get():
-            messagebox.showerror("Error", "Please select a subject")
-            return
-        
-        # Get subject ID
-        subject_name = self.subject_var.get()
-        subject_id = None
-        for subject in self.subjects:
-            if subject['name'] == subject_name:
-                subject_id = subject['id']
-                break
-        
-        if not subject_id:
-            messagebox.showerror("Error", "Invalid subject")
-            return
-        
         try:
             # Show loading
-            self.config(cursor="wait")
-            self.update()
+            try:
+                self.config(cursor="wait")
+                self.update()
+            except tk.TclError:
+                # Widget might have been destroyed
+                pass
             
             # Call API
             response = self.api_client.import_docx(
                 self.selected_file,
-                subject_id,
                 self.user_data['id']
             )
             
             if response.get('success'):
-                messagebox.showinfo(
-                    "Success", 
-                    f"Imported {response.get('imported_questions', 0)} out of {response.get('total_questions', 0)} questions"
-                )
+                imported_count = response.get('imported_questions', 0)
+                total_count = response.get('total_questions', 0)
+                skipped_count = response.get('skipped_questions', 0)
+                
+                message = f"Imported {imported_count} out of {total_count} questions"
+                if skipped_count > 0:
+                    message += f"\nSkipped {skipped_count} duplicate questions"
+                
+                messagebox.showinfo("Success", message)
                 self.go_back()
             else:
                 messagebox.showerror("Error", response.get('message', 'Import failed'))
@@ -281,7 +319,11 @@ class ImportView(tk.Frame):
         except Exception as e:
             messagebox.showerror("Error", str(e))
         finally:
-            self.config(cursor="")
+            try:
+                self.config(cursor="")
+            except tk.TclError:
+                # Widget might have been destroyed
+                pass
     
     def go_back(self):
         """Go back to dashboard"""

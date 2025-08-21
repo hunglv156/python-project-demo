@@ -11,7 +11,6 @@ class ExamView(tk.Frame):
         self.api_client = api_client or APIClient()
         self.exams = []
         self.subjects = []
-        self.questions = []
         
         self.setup_ui()
         self.load_data()
@@ -30,7 +29,7 @@ class ExamView(tk.Frame):
         # Title
         title_label = tk.Label(
             header_frame,
-            text="Exam Management",
+            text="Tạo Đề Thi",
             font=config.TITLE_FONT,
             bg=config.PRIMARY_COLOR,
             fg="black"
@@ -52,64 +51,129 @@ class ExamView(tk.Frame):
         content_frame = tk.Frame(main_frame, bg=config.BACKGROUND_COLOR)
         content_frame.pack(expand=True, fill='both', padx=20, pady=20)
         
-        # Action buttons (for generator role)
-        if self.user_data.get('role') == 'generator':
-            self.setup_action_buttons(content_frame)
+        # Create exam section
+        self.setup_create_exam_section(content_frame)
         
-        # Exams list
-        self.setup_exams_list(content_frame)
+        # Exams list section
+        self.setup_exams_list_section(content_frame)
     
-    def setup_action_buttons(self, parent):
-        """Setup action buttons for generator role"""
-        button_frame = tk.Frame(parent, bg=config.BACKGROUND_COLOR)
-        button_frame.pack(fill='x', pady=(0, 20))
+    def setup_create_exam_section(self, parent):
+        """Setup section tạo đề thi"""
+        create_frame = tk.LabelFrame(parent, text="Tạo Đề Thi Mới", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
+        create_frame.pack(fill='x', pady=(0, 20))
         
-        # Create exam button
+        # Form frame
+        form_frame = tk.Frame(create_frame, bg=config.BACKGROUND_COLOR)
+        form_frame.pack(fill='x', padx=20, pady=20)
+        
+        # Subject selection
+        subject_frame = tk.Frame(form_frame, bg=config.BACKGROUND_COLOR)
+        subject_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(
+            subject_frame,
+            text="Môn thi:",
+            font=config.NORMAL_FONT,
+            bg=config.BACKGROUND_COLOR
+        ).pack(side='left')
+        
+        self.subject_var = tk.StringVar()
+        self.subject_combobox = ttk.Combobox(
+            subject_frame,
+            textvariable=self.subject_var,
+            font=config.NORMAL_FONT,
+            state="readonly",
+            width=30
+        )
+        self.subject_combobox.pack(side='left', padx=(10, 0))
+        
+        # Bind subject selection change
+        self.subject_combobox.bind('<<ComboboxSelected>>', lambda e: self.update_subject_info())
+        
+        # Duration frame
+        duration_frame = tk.Frame(form_frame, bg=config.BACKGROUND_COLOR)
+        duration_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(
+            duration_frame,
+            text="Thời gian thi (phút):",
+            font=config.NORMAL_FONT,
+            bg=config.BACKGROUND_COLOR
+        ).pack(side='left')
+        
+        self.duration_var = tk.StringVar(value="60")
+        duration_entry = tk.Entry(
+            duration_frame,
+            textvariable=self.duration_var,
+            font=config.NORMAL_FONT,
+            width=10
+        )
+        duration_entry.pack(side='left', padx=(10, 0))
+        
+        # Number of questions frame
+        questions_frame = tk.Frame(form_frame, bg=config.BACKGROUND_COLOR)
+        questions_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(
+            questions_frame,
+            text="Số câu hỏi:",
+            font=config.NORMAL_FONT,
+            bg=config.BACKGROUND_COLOR
+        ).pack(side='left')
+        
+        self.questions_var = tk.StringVar(value="10")
+        questions_entry = tk.Entry(
+            questions_frame,
+            textvariable=self.questions_var,
+            font=config.NORMAL_FONT,
+            width=10
+        )
+        questions_entry.pack(side='left', padx=(10, 0))
+        
+        # Subject info label
+        self.subject_info_label = tk.Label(
+            questions_frame,
+            text="",
+            font=config.NORMAL_FONT,
+            bg=config.BACKGROUND_COLOR,
+            fg="blue"
+        )
+        self.subject_info_label.pack(side='left', padx=(20, 0))
+        
+        # Create button
         create_button = tk.Button(
-            button_frame,
-            text="Create New Exam",
+            form_frame,
+            text="Tạo Đề Thi",
             font=config.NORMAL_FONT,
             bg=config.SUCCESS_COLOR,
             fg="black",
-            command=self.create_exam
+            command=self.create_exam,
+            width=15
         )
-        create_button.pack(side='left', padx=(0, 10))
-        
-        # Add version button
-        add_version_button = tk.Button(
-            button_frame,
-            text="Add Version to Exam",
-            font=config.NORMAL_FONT,
-            bg=config.PRIMARY_COLOR,
-            fg="black",
-            command=self.add_exam_version
-        )
-        add_version_button.pack(side='left', padx=(0, 10))
-        
-        # Refresh button
-        refresh_button = tk.Button(
-            button_frame,
-            text="Refresh",
-            font=config.NORMAL_FONT,
-            bg=config.SECONDARY_COLOR,
-            fg="black",
-            command=self.load_exams
-        )
-        refresh_button.pack(side='right')
+        create_button.pack(pady=(10, 0))
     
-    def setup_exams_list(self, parent):
-        """Setup exams list"""
-        list_frame = tk.LabelFrame(parent, text="Exams", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
+    def setup_exams_list_section(self, parent):
+        """Setup section danh sách đề thi"""
+        list_frame = tk.LabelFrame(parent, text="Danh Sách Đề Thi", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
         list_frame.pack(fill='both', expand=True)
         
         # Treeview
-        columns = ('ID', 'Code', 'Title', 'Subject', 'Duration', 'Questions', 'Versions')
-        self.tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        columns = ('ID', 'Mã đề', 'Môn thi', 'Thời gian', 'Số câu', 'Ngày tạo')
+        self.tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=10)
         
         # Configure columns
+        column_widths = {
+            'ID': 50,
+            'Mã đề': 100,
+            'Môn thi': 150,
+            'Thời gian': 100,
+            'Số câu': 80,
+            'Ngày tạo': 120
+        }
+        
         for col in columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=100)
+            self.tree.column(col, width=column_widths.get(col, 100))
         
         # Scrollbar
         scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.tree.yview)
@@ -122,19 +186,39 @@ class ExamView(tk.Frame):
         self.tree.bind('<Double-1>', self.on_exam_double_click)
     
     def load_data(self):
-        """Load subjects, questions and exams"""
+        """Load subjects and exams"""
         try:
             # Load subjects
             self.subjects = self.api_client.get_subjects()
             
-            # Load questions
-            self.questions = self.api_client.get_questions()
-            
             # Load exams
             self.load_exams()
             
+            # Update subject combobox
+            subject_names = [subject['name'] for subject in self.subjects]
+            self.subject_combobox['values'] = subject_names
+            if subject_names:
+                self.subject_combobox.set(subject_names[0])
+                self.update_subject_info()
+            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+    
+    def update_subject_info(self):
+        """Update thông tin môn học được chọn"""
+        selected_subject = self.subject_var.get()
+        if selected_subject:
+            # Tìm subject và số câu hỏi
+            for subject in self.subjects:
+                if subject['name'] == selected_subject:
+                    try:
+                        questions = self.api_client.get_questions(subject_id=subject['id'])
+                        self.subject_info_label.config(
+                            text=f"(Có {len(questions)} câu hỏi trong môn này)"
+                        )
+                    except:
+                        self.subject_info_label.config(text="(Không thể load số câu hỏi)")
+                    break
     
     def load_exams(self):
         """Load exams"""
@@ -154,385 +238,197 @@ class ExamView(tk.Frame):
                         subject_name = subject['name']
                         break
                 
+                # Format created_at
+                created_at = exam.get('created_at', '')
+                if created_at:
+                    if isinstance(created_at, str):
+                        created_at = created_at[:10]  # Lấy ngày tháng năm
+                    else:
+                        created_at = created_at.strftime('%Y-%m-%d')
+                
                 self.tree.insert('', 'end', values=(
                     exam['id'],
                     exam['code'],
-                    exam['title'],
                     subject_name,
-                    f"{exam['duration_minutes']} min",
+                    f"{exam['duration_minutes']} phút",
                     exam['num_questions'],
-                    len(exam.get('versions', []))
+                    created_at
                 ))
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load exams: {str(e)}")
     
-    def get_selected_exam_id(self):
-        """Get selected exam ID"""
-        selection = self.tree.selection()
-        if selection:
-            item = self.tree.item(selection[0])
-            return item['values'][0]
-        return None
-    
     def create_exam(self):
-        """Create new exam"""
-        self.show_exam_dialog()
-    
-    def add_exam_version(self):
-        """Add version to selected exam"""
-        exam_id = self.get_selected_exam_id()
-        if exam_id:
-            try:
-                exam = self.api_client.get_exam(exam_id)
-                if exam:
-                    self.show_version_dialog(exam)
-                else:
-                    messagebox.showerror("Error", "Exam not found")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load exam: {str(e)}")
-        else:
-            messagebox.showwarning("Warning", "Please select an exam to add version")
+        """Tạo đề thi mới"""
+        # Validate input
+        if not self.subject_var.get():
+            messagebox.showerror("Error", "Vui lòng chọn môn thi")
+            return
+        
+        try:
+            duration = int(self.duration_var.get())
+            if duration <= 0:
+                messagebox.showerror("Error", "Thời gian thi phải lớn hơn 0")
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Thời gian thi phải là số")
+            return
+        
+        try:
+            num_questions = int(self.questions_var.get())
+            if num_questions <= 0:
+                messagebox.showerror("Error", "Số câu hỏi phải lớn hơn 0")
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Số câu hỏi phải là số")
+            return
+        
+        # Get subject ID
+        subject_id = None
+        for subject in self.subjects:
+            if subject['name'] == self.subject_var.get():
+                subject_id = subject['id']
+                break
+        
+        if not subject_id:
+            messagebox.showerror("Error", "Môn học không hợp lệ")
+            return
+        
+        # Check available questions
+        try:
+            questions = self.api_client.get_questions(subject_id=subject_id)
+            if num_questions > len(questions):
+                messagebox.showerror("Error", f"Số câu hỏi ({num_questions}) vượt quá số câu hỏi có sẵn ({len(questions)})")
+                return
+        except Exception as e:
+            messagebox.showerror("Error", f"Không thể kiểm tra số câu hỏi: {str(e)}")
+            return
+        
+        # Create exam
+        try:
+            exam_data = {
+                'subject_id': subject_id,
+                'duration_minutes': duration,
+                'num_questions': num_questions,
+                'generated_by': self.user_data['id']
+            }
+            
+            response = self.api_client.create_exam(exam_data)
+            
+            if response:
+                messagebox.showinfo("Success", f"Tạo đề thi thành công!\nMã đề: {response.get('code', '')}")
+                self.load_exams()  # Refresh list
+            else:
+                messagebox.showerror("Error", "Tạo đề thi thất bại")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Tạo đề thi thất bại: {str(e)}")
     
     def on_exam_double_click(self, event):
-        """Handle exam double click"""
+        """Handle exam double click - preview exam"""
         selection = self.tree.selection()
         if selection:
             item = self.tree.item(selection[0])
             exam_id = item['values'][0]
-            self.show_exam_details(exam_id)
+            self.preview_exam(exam_id)
     
-    def show_exam_details(self, exam_id):
-        """Show exam details"""
+    def preview_exam(self, exam_id):
+        """Preview đề thi"""
         try:
-            exam = self.api_client.get_exam(exam_id)
-            if exam:
-                self.show_exam_dialog(exam, read_only=True)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load exam details: {str(e)}")
-    
-    def show_exam_dialog(self, exam=None, read_only=False):
-        """Show exam dialog for create/edit/view"""
-        dialog = tk.Toplevel(self)
-        dialog.title("Create New Exam" if not exam else f"Exam {exam['code']}")
-        dialog.geometry("800x700")
-        dialog.configure(bg=config.BACKGROUND_COLOR)
-        
-        # Make dialog modal
-        dialog.transient(self)
-        dialog.grab_set()
-        
-        # Variables
-        subject_var = tk.StringVar()
-        code_var = tk.StringVar()
-        title_var = tk.StringVar()
-        duration_var = tk.StringVar(value="60")
-        num_questions_var = tk.StringVar(value="30")
-        
-        # Subject selection
-        subject_frame = tk.Frame(dialog, bg=config.BACKGROUND_COLOR)
-        subject_frame.pack(fill='x', padx=10, pady=5)
-        
-        tk.Label(subject_frame, text="Subject:", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        subject_combobox = ttk.Combobox(subject_frame, textvariable=subject_var, values=[s['name'] for s in self.subjects], state="readonly")
-        subject_combobox.pack(side='left', padx=(10, 0))
-        
-        # Exam info
-        info_frame = tk.LabelFrame(dialog, text="Exam Information", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
-        info_frame.pack(fill='x', padx=10, pady=5)
-        
-        # Code
-        code_frame = tk.Frame(info_frame, bg=config.BACKGROUND_COLOR)
-        code_frame.pack(fill='x', padx=10, pady=5)
-        
-        tk.Label(code_frame, text="Code:", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        tk.Entry(code_frame, textvariable=code_var, font=config.NORMAL_FONT).pack(side='left', padx=(10, 0), fill='x', expand=True)
-        
-        # Title
-        title_frame = tk.Frame(info_frame, bg=config.BACKGROUND_COLOR)
-        title_frame.pack(fill='x', padx=10, pady=5)
-        
-        tk.Label(title_frame, text="Title:", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        tk.Entry(title_frame, textvariable=title_var, font=config.NORMAL_FONT).pack(side='left', padx=(10, 0), fill='x', expand=True)
-        
-        # Duration and Questions
-        options_frame = tk.Frame(info_frame, bg=config.BACKGROUND_COLOR)
-        options_frame.pack(fill='x', padx=10, pady=5)
-        
-        tk.Label(options_frame, text="Duration (min):", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        tk.Entry(options_frame, textvariable=duration_var, font=config.NORMAL_FONT, width=10).pack(side='left', padx=(10, 20))
-        
-        tk.Label(options_frame, text="Questions:", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        tk.Entry(options_frame, textvariable=num_questions_var, font=config.NORMAL_FONT, width=10).pack(side='left', padx=(10, 0))
-        
-        # Questions selection
-        questions_frame = tk.LabelFrame(dialog, text="Select Questions", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
-        questions_frame.pack(fill='both', expand=True, padx=10, pady=5)
-        
-        # Filter by subject
-        filter_frame = tk.Frame(questions_frame, bg=config.BACKGROUND_COLOR)
-        filter_frame.pack(fill='x', padx=10, pady=5)
-        
-        tk.Label(filter_frame, text="Filter by Subject:", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        filter_subject_var = tk.StringVar()
-        filter_combobox = ttk.Combobox(filter_frame, textvariable=filter_subject_var, values=['All'] + [s['name'] for s in self.subjects], state="readonly")
-        filter_combobox.pack(side='left', padx=(10, 0))
-        filter_combobox.set('All')
-        
-        # Questions list
-        questions_container = tk.Frame(questions_frame, bg=config.BACKGROUND_COLOR)
-        questions_container.pack(fill='both', expand=True, padx=10, pady=5)
-        
-        # Questions treeview
-        question_columns = ('ID', 'Question', 'Unit', 'Mark', 'Selected')
-        questions_tree = ttk.Treeview(questions_container, columns=question_columns, show='headings', height=10)
-        
-        for col in question_columns:
-            questions_tree.heading(col, text=col)
-            questions_tree.column(col, width=150)
-        
-        question_scrollbar = ttk.Scrollbar(questions_container, orient='vertical', command=questions_tree.yview)
-        questions_tree.configure(yscrollcommand=question_scrollbar.set)
-        
-        questions_tree.pack(side='left', fill='both', expand=True)
-        question_scrollbar.pack(side='right', fill='y')
-        
-        # Selected questions
-        selected_questions = set()
-        
-        def load_filtered_questions():
-            """Load questions based on filter"""
-            # Clear existing items
-            for item in questions_tree.get_children():
-                questions_tree.delete(item)
-            
-            # Get filter subject
-            filter_subject = filter_subject_var.get()
-            filtered_questions = []
-            
-            if filter_subject == 'All':
-                filtered_questions = self.questions
+            exam_data = self.api_client.get_exam_preview(exam_id)
+            if exam_data:
+                self.show_exam_preview_dialog(exam_data)
             else:
-                subject_id = None
-                for subject in self.subjects:
-                    if subject['name'] == filter_subject:
-                        subject_id = subject['id']
-                        break
-                
-                if subject_id:
-                    filtered_questions = [q for q in self.questions if q['subject_id'] == subject_id]
-            
-            # Add to treeview
-            for question in filtered_questions:
-                questions_tree.insert('', 'end', values=(
-                    question['id'],
-                    question['question'][:50] + "..." if len(question['question']) > 50 else question['question'],
-                    question.get('unit_text', ''),
-                    question.get('mark', ''),
-                    "✓" if question['id'] in selected_questions else ""
-                ))
-        
-        def toggle_question_selection():
-            """Toggle question selection"""
-            selection = questions_tree.selection()
-            if selection:
-                item = questions_tree.item(selection[0])
-                question_id = item['values'][0]
-                
-                if question_id in selected_questions:
-                    selected_questions.remove(question_id)
-                else:
-                    selected_questions.add(question_id)
-                
-                # Update display
-                for item in questions_tree.get_children():
-                    values = list(questions_tree.item(item)['values'])
-                    if values[0] == question_id:
-                        values[4] = "✓" if question_id in selected_questions else ""
-                        questions_tree.item(item, values=values)
-                        break
-        
-        # Bind events
-        filter_combobox.bind('<<ComboboxSelected>>', lambda e: load_filtered_questions())
-        questions_tree.bind('<Double-1>', lambda e: toggle_question_selection())
-        
-        # Load initial questions
-        load_filtered_questions()
-        
-        # Load existing data if editing
-        if exam:
-            # Set values
-            for subject in self.subjects:
-                if subject['id'] == exam['subject_id']:
-                    subject_var.set(subject['name'])
-                    break
-            
-            code_var.set(exam['code'])
-            title_var.set(exam['title'])
-            duration_var.set(str(exam['duration_minutes']))
-            num_questions_var.set(str(exam['num_questions']))
-            
-            # Disable editing if read-only
-            if read_only:
-                subject_combobox.config(state='disabled')
-                code_var.set(exam['code'])
-                title_var.set(exam['title'])
-                duration_var.set(str(exam['duration_minutes']))
-                num_questions_var.set(str(exam['num_questions']))
-        
-        # Buttons
-        button_frame = tk.Frame(dialog, bg=config.BACKGROUND_COLOR)
-        button_frame.pack(fill='x', padx=10, pady=10)
-        
-        if not read_only:
-            def save_exam():
-                try:
-                    # Validate
-                    if not subject_var.get():
-                        messagebox.showerror("Error", "Please select a subject")
-                        return
-                    
-                    if not code_var.get().strip():
-                        messagebox.showerror("Error", "Please enter exam code")
-                        return
-                    
-                    if not title_var.get().strip():
-                        messagebox.showerror("Error", "Please enter exam title")
-                        return
-                    
-                    if len(selected_questions) == 0:
-                        messagebox.showerror("Error", "Please select at least one question")
-                        return
-                    
-                    # Get subject ID
-                    subject_id = None
-                    for subject in self.subjects:
-                        if subject['name'] == subject_var.get():
-                            subject_id = subject['id']
-                            break
-                    
-                    exam_data = {
-                        'subject_id': subject_id,
-                        'code': code_var.get().strip(),
-                        'title': title_var.get().strip(),
-                        'duration_minutes': int(duration_var.get()),
-                        'num_questions': int(num_questions_var.get()),
-                        'generated_by': self.user_data['id'],
-                        'question_ids': list(selected_questions)
-                    }
-                    
-                    if exam:  # Update (not implemented in backend)
-                        messagebox.showinfo("Info", "Update functionality not implemented")
-                    else:  # Create
-                        self.api_client.create_exam(exam_data)
-                        messagebox.showinfo("Success", "Exam created successfully")
-                    
-                    dialog.destroy()
-                    self.load_exams()
-                    
-                except Exception as e:
-                    messagebox.showerror("Error", str(e))
-            
-            tk.Button(button_frame, text="Save", command=save_exam, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
-        
-        tk.Button(button_frame, text="Close", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(side='right')
+                messagebox.showerror("Error", "Không thể load đề thi")
+        except Exception as e:
+            messagebox.showerror("Error", f"Không thể preview đề thi: {str(e)}")
     
-    def show_version_dialog(self, exam):
-        """Show dialog to add version to exam"""
+    def show_exam_preview_dialog(self, exam_data):
+        """Hiển thị dialog preview đề thi"""
         dialog = tk.Toplevel(self)
-        dialog.title(f"Add Version to Exam {exam['code']}")
-        dialog.geometry("600x500")
-        dialog.configure(bg=config.BACKGROUND_COLOR)
-        
-        # Make dialog modal
+        dialog.title(f"Preview Đề Thi - {exam_data.get('code', '')}")
+        dialog.geometry("800x600")
         dialog.transient(self)
         dialog.grab_set()
         
-        # Questions selection
-        questions_frame = tk.LabelFrame(dialog, text="Select Questions for New Version", font=config.HEADER_FONT, bg=config.BACKGROUND_COLOR)
-        questions_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        # Main frame
+        main_frame = tk.Frame(dialog)
+        main_frame.pack(expand=True, fill='both', padx=20, pady=20)
         
-        # Questions list
-        questions_container = tk.Frame(questions_frame, bg=config.BACKGROUND_COLOR)
-        questions_container.pack(fill='both', expand=True, padx=10, pady=10)
+        # Header
+        header_frame = tk.Frame(main_frame)
+        header_frame.pack(fill='x', pady=(0, 20))
         
-        # Questions treeview
-        question_columns = ('ID', 'Question', 'Unit', 'Mark', 'Selected')
-        questions_tree = ttk.Treeview(questions_container, columns=question_columns, show='headings', height=15)
+        tk.Label(
+            header_frame,
+            text=f"ĐỀ THI: {exam_data.get('code', '')}",
+            font=('Arial', 16, 'bold')
+        ).pack()
         
-        for col in question_columns:
-            questions_tree.heading(col, text=col)
-            questions_tree.column(col, width=120)
+        tk.Label(
+            header_frame,
+            text=f"Môn: {exam_data.get('subject_name', '')}",
+            font=('Arial', 12)
+        ).pack()
         
-        question_scrollbar = ttk.Scrollbar(questions_container, orient='vertical', command=questions_tree.yview)
-        questions_tree.configure(yscrollcommand=question_scrollbar.set)
+        tk.Label(
+            header_frame,
+            text=f"Thời gian: {exam_data.get('duration_minutes', 0)} phút | Số câu: {exam_data.get('num_questions', 0)}",
+            font=('Arial', 12)
+        ).pack()
         
-        questions_tree.pack(side='left', fill='both', expand=True)
-        question_scrollbar.pack(side='right', fill='y')
+        # Questions frame
+        questions_frame = tk.Frame(main_frame)
+        questions_frame.pack(fill='both', expand=True)
         
-        # Selected questions
-        selected_questions = set()
+        # Text widget for questions
+        text_widget = tk.Text(
+            questions_frame,
+            font=('Arial', 11),
+            wrap='word',
+            state='disabled'
+        )
         
-        # Load questions for the same subject
-        subject_questions = [q for q in self.questions if q['subject_id'] == exam['subject_id']]
+        scrollbar = ttk.Scrollbar(questions_frame, orient='vertical', command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
         
-        # Add to treeview
-        for question in subject_questions:
-            questions_tree.insert('', 'end', values=(
-                question['id'],
-                question['question'][:40] + "..." if len(question['question']) > 40 else question['question'],
-                question.get('unit_text', ''),
-                question.get('mark', ''),
-                ""
-            ))
+        text_widget.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
         
-        def toggle_question_selection():
-            """Toggle question selection"""
-            selection = questions_tree.selection()
-            if selection:
-                item = questions_tree.item(selection[0])
-                question_id = item['values'][0]
-                
-                if question_id in selected_questions:
-                    selected_questions.remove(question_id)
-                else:
-                    selected_questions.add(question_id)
-                
-                # Update display
-                for item in questions_tree.get_children():
-                    values = list(questions_tree.item(item)['values'])
-                    if values[0] == question_id:
-                        values[4] = "✓" if question_id in selected_questions else ""
-                        questions_tree.item(item, values=values)
-                        break
+        # Load questions content
+        questions = exam_data.get('questions', [])
+        content = ""
         
-        # Bind double click
-        questions_tree.bind('<Double-1>', lambda e: toggle_question_selection())
+        for i, question in enumerate(questions, 1):
+            content += f"Câu {i}: {question.get('question_text', '')}\n"
+            
+            choices = question.get('choices', [])
+            for j, choice in enumerate(choices):
+                choice_letter = choice.get('letter', '').upper()
+                choice_content = choice.get('content', '')
+                is_correct = choice.get('is_correct', False)
+                correct_mark = " ✓" if is_correct else ""
+                content += f"  {choice_letter}. {choice_content}{correct_mark}\n"
+            
+            content += "\n"
         
-        # Buttons
-        button_frame = tk.Frame(dialog, bg=config.BACKGROUND_COLOR)
-        button_frame.pack(fill='x', padx=10, pady=10)
+        # Enable text widget to insert content
+        text_widget.config(state='normal')
+        text_widget.insert('1.0', content)
+        text_widget.config(state='disabled')
         
-        def add_version():
-            try:
-                if len(selected_questions) == 0:
-                    messagebox.showerror("Error", "Please select at least one question")
-                    return
-                
-                self.api_client.add_exam_version(exam['id'], list(selected_questions))
-                messagebox.showinfo("Success", "Version added successfully")
-                dialog.destroy()
-                self.load_exams()
-                
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
-        
-        tk.Button(button_frame, text="Add Version", command=add_version, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
-        tk.Button(button_frame, text="Cancel", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(side='right')
+        # Close button
+        close_button = tk.Button(
+            main_frame,
+            text="Đóng",
+            font=('Arial', 12),
+            command=dialog.destroy,
+            width=10
+        )
+        close_button.pack(pady=(20, 0))
     
     def go_back(self):
         """Go back to dashboard"""
         from .dashboard_view import DashboardView
-        # Get the main app instance
         app = self.winfo_toplevel().app
         app.show_view(DashboardView, self.user_data, app.on_logout, self.api_client) 

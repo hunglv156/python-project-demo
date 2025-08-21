@@ -18,13 +18,13 @@ class ImportResponse(BaseModel):
     message: str
     total_questions: int = 0
     imported_questions: int = 0
+    skipped_questions: int = 0
     errors: List[str] = []
     questions: List[Dict[str, Any]] = []
 
 @router.post("/docx", response_model=ImportResponse)
 async def import_docx(
     file: UploadFile = File(...),
-    subject_id: int = Form(...),
     created_by: int = Form(...)
 ):
     """Import DOCX file vào database"""
@@ -52,12 +52,42 @@ async def import_docx(
             return ImportResponse(
                 success=False,
                 message="Validation failed",
-                errors=validation['errors'],
+                errors=validation.get('critical_errors', []) + validation.get('errors', []),
                 total_questions=validation['total_questions']
             )
         
+        # Get file metadata
+        file_metadata = parser.get_file_metadata()
+        
+        # Tìm hoặc tạo subject
+        subject_name = file_metadata.get('subject')
+        if not subject_name:
+            return ImportResponse(
+                success=False,
+                message="Subject information not found in file",
+                errors=["Missing Subject information"],
+                total_questions=0
+            )
+        
+        # Tìm subject trong database
+        subject = Subject.get_by_name(subject_name)
+        if not subject:
+            # Tạo subject mới
+            lecturer = file_metadata.get('lecturer', '')
+            subject = Subject.create(name=subject_name, lecturer=lecturer)
+            logger.info(f"Created new subject: {subject_name} with lecturer: {lecturer}")
+        else:
+            # Cập nhật lecturer nếu có
+            lecturer = file_metadata.get('lecturer')
+            if lecturer and subject.lecturer != lecturer:
+                subject.update_lecturer(lecturer)
+                logger.info(f"Updated lecturer for subject {subject_name}: {lecturer}")
+        
+        subject_id = subject.id
+        
         # Import questions to database
         imported_count = 0
+        skipped_count = 0
         errors = []
         
         for question_data in questions_data:
@@ -94,6 +124,15 @@ async def import_docx(
                     logger.error(error_msg)
                     errors.append(error_msg)
                     
+            except ValueError as e:
+                # Check if it's a duplicate error
+                if "already exists" in str(e):
+                    skipped_count += 1
+                    logger.info(f"Skipped duplicate question {question_data['question_number']}: {str(e)}")
+                else:
+                    error_msg = f"Error importing question {question_data['question_number']}: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
             except Exception as e:
                 error_msg = f"Error importing question {question_data['question_number']}: {str(e)}"
                 logger.error(error_msg)
@@ -104,9 +143,10 @@ async def import_docx(
         
         return ImportResponse(
             success=imported_count > 0,
-            message=f"Imported {imported_count} out of {len(questions_data)} questions",
+            message=f"Imported {imported_count} out of {len(questions_data)} questions (skipped {skipped_count} duplicates)",
             total_questions=len(questions_data),
             imported_questions=imported_count,
+            skipped_questions=skipped_count,
             errors=errors,
             questions=questions_data
         )
@@ -137,15 +177,34 @@ async def preview_docx(file: UploadFile = File(...)):
         # Validate questions
         validation = parser.validate_questions()
         
+        # Get file metadata
+        file_metadata = parser.get_file_metadata()
+        
         # Clean up temporary file
         os.remove(file_path)
+        
+        # Nếu có lỗi nghiêm trọng, không cho preview
+        if validation.get('critical_errors'):
+            return {
+                "success": False,
+                "message": "File has critical errors and cannot be previewed",
+                "critical_errors": validation['critical_errors'],
+                "total_questions": 0,
+                "valid": False,
+                "errors": validation.get('errors', []),
+                "warnings": validation.get('warnings', []),
+                "file_metadata": file_metadata,
+                "questions": []
+            }
         
         return {
             "success": True,
             "total_questions": len(questions_data),
             "valid": validation['valid'],
-            "errors": validation['errors'],
-            "warnings": validation['warnings'],
+            "critical_errors": validation.get('critical_errors', []),
+            "errors": validation.get('errors', []),
+            "warnings": validation.get('warnings', []),
+            "file_metadata": file_metadata,
             "questions": questions_data
         }
         

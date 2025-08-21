@@ -150,8 +150,10 @@ class QuestionView(tk.Frame):
     def load_data(self):
         """Load subjects and questions"""
         try:
-            # Load subjects
-            self.subjects = self.api_client.get_subjects()
+            # Load subjects - API sẽ tự động filter theo user_id
+            user_id = self.user_data.get('id')
+            self.subjects = self.api_client.get_subjects(user_id=user_id)
+            
             subject_names = ['All'] + [subject['name'] for subject in self.subjects]
             self.subject_combobox['values'] = subject_names
             self.subject_combobox.set('All')
@@ -180,8 +182,9 @@ class QuestionView(tk.Frame):
                         subject_id = int(subject['id'])
                         break
             
-            # Load questions
-            self.questions = self.api_client.get_questions(subject_id)
+            # Load questions - API sẽ tự động filter theo user_id
+            user_id = self.user_data.get('id')
+            self.questions = self.api_client.get_questions(subject_id=subject_id, user_id=user_id)
             
             # Add to treeview
             for question in self.questions:
@@ -282,7 +285,13 @@ class QuestionView(tk.Frame):
         subject_frame.pack(fill='x', padx=10, pady=5)
         
         tk.Label(subject_frame, text="Subject:", font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR).pack(side='left')
-        subject_combobox = ttk.Combobox(subject_frame, textvariable=subject_var, values=[s['name'] for s in self.subjects], state="readonly")
+        
+        # Subjects đã được filter bởi API theo user_id
+        subject_names = [s['name'] for s in self.subjects]
+        
+        # Nếu đang update question thì disable subject selection
+        subject_state = "disabled" if question else "readonly"
+        subject_combobox = ttk.Combobox(subject_frame, textvariable=subject_var, values=subject_names, state=subject_state)
         subject_combobox.pack(side='left', padx=(10, 0))
         
         # Unit
