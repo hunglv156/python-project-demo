@@ -5,11 +5,11 @@ from ..config import config
 from ..api_client import APIClient
 
 class DashboardView(tk.Frame):
-    def __init__(self, parent, user_data: Dict[str, Any], on_logout: Callable):
+    def __init__(self, parent, user_data: Dict[str, Any], on_logout: Callable, api_client: APIClient):
         super().__init__(parent)
         self.user_data = user_data
         self.on_logout = on_logout
-        self.api_client = APIClient()
+        self.api_client = api_client
         
         self.setup_ui()
     
@@ -111,25 +111,32 @@ class DashboardView(tk.Frame):
         from .import_view import ImportView
         # Get the main app instance
         app = self.winfo_toplevel().app
-        app.show_view(ImportView, self.user_data)
+        app.show_view(ImportView, self.user_data, self.api_client)
     
     def open_question_view(self):
         """Open question view"""
         from .question_view import QuestionView
         # Get the main app instance
         app = self.winfo_toplevel().app
-        app.show_view(QuestionView, self.user_data)
+        app.show_view(QuestionView, self.user_data, self.api_client)
     
     def open_exam_view(self):
         """Open exam view"""
         from .exam_view import ExamView
         # Get the main app instance
         app = self.winfo_toplevel().app
-        app.show_view(ExamView, self.user_data)
+        app.show_view(ExamView, self.user_data, self.api_client)
     
     def logout(self):
         """Handle logout"""
         if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
+            try:
+                # Call logout API to clear session
+                self.api_client.logout()
+            except Exception as e:
+                # Ignore logout errors, just continue
+                pass
+            
             # Get the main app instance
             app = self.winfo_toplevel().app
             app.on_logout() 

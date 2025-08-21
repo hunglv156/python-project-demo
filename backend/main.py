@@ -7,7 +7,8 @@ import os
 
 from .config import settings
 from .database import db
-from .routes import auth_router, subjects_router, questions_router, exams_router, import_router
+from .routes import auth_router, subjects_router, questions_router, exams_router, import_router, test_session_router
+from .middleware.session import SessionMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add session middleware
+app.add_middleware(SessionMiddleware)
+
 # Mount static files
 if os.path.exists(settings.get_images_dir()):
     app.mount("/images", StaticFiles(directory=settings.get_images_dir()), name="images")
@@ -39,6 +43,7 @@ app.include_router(subjects_router)
 app.include_router(questions_router)
 app.include_router(exams_router)
 app.include_router(import_router)
+app.include_router(test_session_router)
 
 @app.on_event("startup")
 async def startup_event():

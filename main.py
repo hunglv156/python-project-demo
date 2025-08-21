@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 
 from backend.main import app as fastapi_app
 from frontend.views import LoginView, DashboardView
+from frontend.api_client import APIClient
 from frontend.config import config
 
 class TestManagementApp:
@@ -28,6 +29,7 @@ class TestManagementApp:
         # Current view
         self.current_view = None
         self.user_data = None
+        self.api_client = APIClient()
         
         # Start backend server
         self.start_backend()
@@ -63,13 +65,13 @@ class TestManagementApp:
     def show_login(self):
         """Show login view"""
         self.clear_current_view()
-        self.current_view = LoginView(self.root, self.on_login_success)
+        self.current_view = LoginView(self.root, self.on_login_success, self.api_client)
         self.current_view.pack(expand=True, fill='both')
     
     def show_dashboard(self):
         """Show dashboard view"""
         self.clear_current_view()
-        self.current_view = DashboardView(self.root, self.user_data, self.on_logout)
+        self.current_view = DashboardView(self.root, self.user_data, self.on_logout, self.api_client)
         self.current_view.pack(expand=True, fill='both')
     
     def show_view(self, view_class, *args):

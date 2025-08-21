@@ -5,10 +5,10 @@ from ..config import config
 from ..api_client import APIClient
 
 class LoginView(tk.Frame):
-    def __init__(self, parent, on_login_success: Callable):
+    def __init__(self, parent, on_login_success: Callable, api_client: APIClient):
         super().__init__(parent)
         self.on_login_success = on_login_success
-        self.api_client = APIClient()
+        self.api_client = api_client
         
         self.setup_ui()
     

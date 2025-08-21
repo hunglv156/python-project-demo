@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List
 from ..models.subject import Subject
+from ..models.user import User
+from ..middleware.auth import require_auth, optional_auth, get_user_subjects_filter
 
 router = APIRouter(prefix="/subjects", tags=["Subjects"])
 
@@ -11,11 +13,32 @@ class SubjectResponse(BaseModel):
     created_at: str
 
 @router.get("/", response_model=List[SubjectResponse])
-async def get_subjects():
+async def get_subjects(
+    request: Request,
+    current_user: User = Depends(optional_auth)
+):
     """Lấy tất cả subjects"""
     try:
-        subjects = Subject.get_all()
-        return [SubjectResponse(**subject.to_dict()) for subject in subjects]
+        # Nếu không có user đăng nhập, trả về tất cả môn học
+        if not current_user:
+            subjects = Subject.get_all()
+            return [SubjectResponse(**subject.to_dict()) for subject in subjects]
+        
+        # Lấy filter môn học cho user hiện tại
+        allowed_subjects = get_user_subjects_filter(request)
+        
+        if allowed_subjects:
+            # Editor chỉ thấy môn học được phân công
+            subjects = []
+            for subject_id in allowed_subjects:
+                subject = Subject.get_by_id(subject_id)
+                if subject:
+                    subjects.append(subject)
+            return [SubjectResponse(**subject.to_dict()) for subject in subjects]
+        else:
+            # Admin thấy tất cả môn học
+            subjects = Subject.get_all()
+            return [SubjectResponse(**subject.to_dict()) for subject in subjects]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

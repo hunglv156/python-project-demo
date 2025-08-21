@@ -6,10 +6,10 @@ from ..config import config
 from ..api_client import APIClient
 
 class ImportView(tk.Frame):
-    def __init__(self, parent, user_data: Dict[str, Any]):
+    def __init__(self, parent, user_data: Dict[str, Any], api_client: APIClient = None):
         super().__init__(parent)
         self.user_data = user_data
-        self.api_client = APIClient()
+        self.api_client = api_client or APIClient()
         self.selected_file = None
         self.subjects = []
         
@@ -288,4 +288,4 @@ class ImportView(tk.Frame):
         from .dashboard_view import DashboardView
         # Get the main app instance
         app = self.winfo_toplevel().app
-        app.show_view(DashboardView, self.user_data, app.on_logout) 
+        app.show_view(DashboardView, self.user_data, app.on_logout, self.api_client) 

@@ -65,6 +65,10 @@ class APIClient:
         """Get user by ID"""
         return self._make_request("GET", f"/auth/user/{user_id}")
     
+    def logout(self) -> Dict[str, Any]:
+        """Logout user"""
+        return self._make_request("POST", "/auth/logout")
+    
     # Subjects
     def get_subjects(self) -> List[Dict[str, Any]]:
         """Get all subjects"""
