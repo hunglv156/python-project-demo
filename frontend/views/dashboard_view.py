@@ -77,7 +77,7 @@ class DashboardView(tk.Frame):
             self.create_menu_button(menu_frame, "Manage Questions", self.open_question_view)
         
         if role == 'generator':
-            self.create_menu_button(menu_frame, "Generate Exam with Mixed Answers", self.open_exam_view)
+            self.create_menu_button(menu_frame, "Create Exam", self.open_exam_view)
         
         # Logout button
         logout_button = tk.Button(

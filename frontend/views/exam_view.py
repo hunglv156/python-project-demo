@@ -431,7 +431,7 @@ class ExamView(tk.Frame):
                     self.load_exams()
                     
                 except Exception as e:
-                    messagebox.showerror("Error", f"Failed to save exam: {str(e)}")
+                    messagebox.showerror("Error", str(e))
             
             tk.Button(button_frame, text="Save", command=save_exam, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
         
@@ -525,7 +525,7 @@ class ExamView(tk.Frame):
                 self.load_exams()
                 
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to add version: {str(e)}")
+                messagebox.showerror("Error", str(e))
         
         tk.Button(button_frame, text="Add Version", command=add_version, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
         tk.Button(button_frame, text="Cancel", command=dialog.destroy, font=config.NORMAL_FONT, bg=config.PRIMARY_COLOR, fg="black").pack(side='right')

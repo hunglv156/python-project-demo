@@ -334,12 +334,42 @@ class QuestionView(tk.Frame):
             choice_entry = tk.Entry(choice_frame, textvariable=choice_var, font=config.NORMAL_FONT)
             choice_entry.pack(side='left', fill='x', expand=True, padx=(0, 10))
             
-            choice_radio = tk.Radiobutton(choice_frame, text="Correct", variable=correct_choice, value=len(choices), font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR)
+            # Use the current length as the index for this new choice
+            current_index = len(choices)
+            choice_radio = tk.Radiobutton(choice_frame, text="Correct", variable=correct_choice, value=current_index, font=config.NORMAL_FONT, bg=config.BACKGROUND_COLOR)
             choice_radio.pack(side='left')
             
             def remove_choice():
+                # Get the index of this choice before removing it
+                current_index = choices.index((choice_var, choice_frame))
+                current_correct = correct_choice.get()
+                
+                # Remove the choice first
                 choice_frame.destroy()
                 choices.remove((choice_var, choice_frame))
+                
+                # Now handle the correct choice selection
+                if current_correct == current_index:
+                    # The correct choice was removed, select the nearest remaining choice
+                    if len(choices) > 0:
+                        # Find the nearest choice (closest in position)
+                        nearest_choice = min(range(len(choices)), key=lambda x: abs(x - current_index))
+                        correct_choice.set(nearest_choice)
+                    else:
+                        # No choices left
+                        correct_choice.set(-1)
+                elif current_correct > current_index:
+                    # The correct choice is after the removed one, adjust its index
+                    correct_choice.set(current_correct - 1)
+                # If current_correct < current_index, no adjustment needed
+                
+                # Update radio button values for remaining choices
+                for i, (_, frame) in enumerate(choices):
+                    # Find the radio button in this frame
+                    for child in frame.winfo_children():
+                        if isinstance(child, tk.Radiobutton):
+                            child.config(value=i)
+                            break
             
             remove_btn = tk.Button(choice_frame, text="Remove", command=remove_choice, font=config.NORMAL_FONT, bg=config.ERROR_COLOR, fg="black")
             remove_btn.pack(side='right')
@@ -399,6 +429,16 @@ class QuestionView(tk.Frame):
                         messagebox.showerror("Error", "Please select a correct answer")
                         return
                     
+                    # Ensure only one correct answer is selected
+                    correct_count = 0
+                    for i, (choice_var, _) in enumerate(choices):
+                        if choice_var.get().strip() and i == correct_choice.get():
+                            correct_count += 1
+                    
+                    if correct_count != 1:
+                        messagebox.showerror("Error", "Multiple correct answers detected. Please ensure only one choice is marked as correct.")
+                        return
+                    
                     # Check if all choices have content
                     empty_choices = []
                     for i, (choice_var, _) in enumerate(choices):
@@ -421,12 +461,22 @@ class QuestionView(tk.Frame):
                     
                     # Prepare choices data
                     choices_data = []
+                    correct_choice_index = correct_choice.get()
+                    correct_choice_content = None
+                    
+                    # First, get the content of the correct choice
+                    if correct_choice_index >= 0 and correct_choice_index < len(choices):
+                        correct_choice_content = choices[correct_choice_index][0].get().strip()
+                    
+                    # Then build the choices data, tracking which one should be correct
                     for i, (choice_var, _) in enumerate(choices):
                         content = choice_var.get().strip()
                         if content:  # Only include non-empty choices
+                            # Check if this is the correct choice by comparing content
+                            is_correct = (content == correct_choice_content and correct_choice_content is not None)
                             choices_data.append({
                                 'content': content,
-                                'is_correct': i == correct_choice.get(),
+                                'is_correct': is_correct,
                                 'position': len(choices_data)  # Use sequential position
                             })
                     
@@ -452,7 +502,7 @@ class QuestionView(tk.Frame):
                     self.load_questions()
                     
                 except Exception as e:
-                    messagebox.showerror("Error", f"Failed to save question: {str(e)}")
+                    messagebox.showerror("Error", str(e))
             
             tk.Button(button_frame, text="Save", command=save_question, font=config.NORMAL_FONT, bg=config.SUCCESS_COLOR, fg="black").pack(side='left', padx=(0, 10))
         

@@ -22,6 +22,36 @@ class APIClient:
             return response.json()
         except requests.exceptions.Timeout:
             raise Exception("API request timed out. Please try again.")
+        except requests.exceptions.HTTPError as e:
+            # Handle HTTP errors with specific status codes
+            if e.response.status_code == 404:
+                raise Exception("Resource not found. Please check if the item still exists.")
+            elif e.response.status_code == 400:
+                try:
+                    error_detail = e.response.json().get('detail', 'Bad request')
+                    raise Exception(error_detail)
+                except:
+                    raise Exception("Invalid request. Please check your input data.")
+            elif e.response.status_code == 403:
+                raise Exception("Access denied. You don't have permission to perform this action.")
+            elif e.response.status_code == 409:
+                try:
+                    error_detail = e.response.json().get('detail', 'Conflict')
+                    raise Exception(f"Conflict: {error_detail}")
+                except:
+                    raise Exception("This operation conflicts with existing data.")
+            elif e.response.status_code == 503:
+                raise Exception("Service temporarily unavailable. Please try again later.")
+            elif e.response.status_code == 500:
+                try:
+                    error_detail = e.response.json().get('detail', 'Internal server error')
+                    raise Exception(f"Server error: {error_detail}")
+                except:
+                    raise Exception("An internal server error occurred. Please try again later.")
+            else:
+                raise Exception(f"HTTP error {e.response.status_code}: {e.response.text}")
+        except requests.exceptions.ConnectionError:
+            raise Exception("Cannot connect to server. Please check your internet connection.")
         except requests.exceptions.RequestException as e:
             raise Exception(f"API request failed: {str(e)}")
     

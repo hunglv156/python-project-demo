@@ -47,7 +47,13 @@ async def get_questions(subject_id: Optional[int] = Query(None)):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error getting questions: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to load questions: {str(e)}")
+        # Cung cấp thông báo lỗi cụ thể hơn
+        if "connection" in str(e).lower() or "database" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Database connection error. Please try again later.")
+        elif "permission" in str(e).lower():
+            raise HTTPException(status_code=403, detail="Permission denied. You don't have access to this resource.")
+        else:
+            raise HTTPException(status_code=500, detail="An error occurred while loading questions. Please try again.")
 
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(question_id: int):
@@ -59,7 +65,13 @@ async def get_question(question_id: int):
         else:
             raise HTTPException(status_code=404, detail="Question not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting question {question_id}: {e}")
+        if "connection" in str(e).lower() or "database" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Database connection error. Please try again later.")
+        else:
+            raise HTTPException(status_code=500, detail="An error occurred while loading the question. Please try again.")
 
 @router.post("/", response_model=QuestionResponse)
 async def create_question(request: CreateQuestionRequest):
@@ -78,20 +90,34 @@ async def create_question(request: CreateQuestionRequest):
         if question:
             return QuestionResponse(**question.to_dict())
         else:
-            raise HTTPException(status_code=400, detail="Failed to create question")
+            raise HTTPException(status_code=400, detail="Failed to create question. Please check your input data.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating question: {e}")
+        if "connection" in str(e).lower() or "database" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Database connection error. Please try again later.")
+        elif "duplicate" in str(e).lower() or "unique" in str(e).lower():
+            raise HTTPException(status_code=409, detail="A question with similar content already exists.")
+        else:
+            raise HTTPException(status_code=500, detail="An error occurred while creating the question. Please try again.")
 
 @router.put("/{question_id}")
 async def update_question(question_id: int, request: CreateQuestionRequest):
     """Cập nhật question"""
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Updating question {question_id}")
+        
         question = Question.get_by_id(question_id)
         if not question:
+            logger.error(f"Question {question_id} not found")
             raise HTTPException(status_code=404, detail="Question not found")
         
+        logger.info(f"Found question {question_id}, updating...")
         success = question.update(
             unit_text=request.unit_text,
             question=request.question,
@@ -103,14 +129,23 @@ async def update_question(question_id: int, request: CreateQuestionRequest):
         )
         
         if success:
-            updated_question = Question.get_by_id(question_id)
-            return QuestionResponse(**updated_question.to_dict())
+            logger.info(f"Question {question_id} updated successfully")
+            # Trả về question đã được update (không cần gọi lại get_by_id)
+            return QuestionResponse(**question.to_dict())
         else:
-            raise HTTPException(status_code=400, detail="Failed to update question")
+            logger.error(f"Failed to update question {question_id}")
+            raise HTTPException(status_code=400, detail="Failed to update question. Please check your input data.")
     except ValueError as e:
+        logger.error(f"Validation error updating question {question_id}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error updating question {question_id}: {e}")
+        if "connection" in str(e).lower() or "database" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Database connection error. Please try again later.")
+        elif "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail="Question not found or has been deleted.")
+        else:
+            raise HTTPException(status_code=500, detail="An error occurred while updating the question. Please try again.")
 
 @router.delete("/{question_id}")
 async def delete_question(question_id: int):
@@ -124,6 +159,14 @@ async def delete_question(question_id: int):
         if success:
             return {"success": True, "message": "Question deleted successfully"}
         else:
-            raise HTTPException(status_code=400, detail="Failed to delete question")
+            raise HTTPException(status_code=400, detail="Failed to delete question. The question may be in use by an exam.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error deleting question {question_id}: {e}")
+        if "connection" in str(e).lower() or "database" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Database connection error. Please try again later.")
+        elif "foreign key" in str(e).lower() or "constraint" in str(e).lower():
+            raise HTTPException(status_code=409, detail="Cannot delete question. It is being used by an exam.")
+        else:
+            raise HTTPException(status_code=500, detail="An error occurred while deleting the question. Please try again.") 

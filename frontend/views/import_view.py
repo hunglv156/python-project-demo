@@ -279,7 +279,7 @@ class ImportView(tk.Frame):
                 messagebox.showerror("Error", response.get('message', 'Import failed'))
                 
         except Exception as e:
-            messagebox.showerror("Error", f"Import failed: {str(e)}")
+            messagebox.showerror("Error", str(e))
         finally:
             self.config(cursor="")
     

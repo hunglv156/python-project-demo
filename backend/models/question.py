@@ -4,6 +4,18 @@ from ..database import db
 
 logger = logging.getLogger(__name__)
 
+# Helper to normalize image values to SQL NULL
+def _normalize_image_value(image: Optional[str]) -> Optional[str]:
+    """Return None (SQL NULL) for empty/placeholder values, else trimmed name."""
+    if image is None:
+        return None
+    if isinstance(image, str):
+        trimmed = image.strip()
+        if trimmed == "" or trimmed.lower() in {"none", "null", "undefined"}:
+            return None
+        return trimmed
+    return None
+
 class Choice:
     def __init__(self, id: int, question_id: int, content: str, is_correct: bool, position: int, created_at: str):
         self.id = id
@@ -52,11 +64,11 @@ class Question:
                 query = """
                     SELECT * FROM questions 
                     WHERE subject_id = %s 
-                    ORDER BY created_at DESC
+                    ORDER BY id
                 """
                 results = db.execute_query(query, (subject_id,))
             else:
-                query = "SELECT * FROM questions ORDER BY created_at DESC"
+                query = "SELECT * FROM questions ORDER BY id"
                 results = db.execute_query(query)
             
             questions = []
@@ -78,7 +90,10 @@ class Question:
             return questions
         except Exception as e:
             logger.error(f"Error in get_all: {e}")
-            return []
+            if "connection" in str(e).lower():
+                raise ValueError("Database connection error. Please try again later.")
+            else:
+                raise ValueError(f"Failed to load questions: {str(e)}")
     
     @staticmethod
     def get_by_id(question_id: int) -> Optional['Question']:
@@ -99,7 +114,10 @@ class Question:
             return None
         except Exception as e:
             logger.error(f"Error in get_by_id for question {question_id}: {e}")
-            return None
+            if "connection" in str(e).lower():
+                raise ValueError("Database connection error. Please try again later.")
+            else:
+                raise ValueError(f"Failed to load question {question_id}: {str(e)}")
     
     @staticmethod
     def create(subject_id: int, unit_text: str, question: str, mix_choices: int,
@@ -116,6 +134,11 @@ class Question:
             has_correct_answer = any(choice.get('is_correct', False) for choice in choices)
             if not has_correct_answer:
                 raise ValueError("Question must have at least one correct answer")
+            
+            # Check if there's only one correct answer
+            correct_answers = [choice for choice in choices if choice.get('is_correct', False)]
+            if len(correct_answers) > 1:
+                raise ValueError("Multiple correct answers detected. Please ensure only one choice is marked as correct.")
             
             # Check if all choices have content
             empty_choices = []
@@ -134,8 +157,8 @@ class Question:
                 INSERT INTO questions (subject_id, unit_text, question, mix_choices, image, mark, created_by, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, NULL) RETURNING *
             """
-            # Handle None image
-            image_value = image if image else None
+            # Normalize image to SQL NULL if empty-like
+            image_value = _normalize_image_value(image)
             result = db.execute_single(query, (subject_id, unit_text, question, mix_choices, image_value, mark, created_by))
             
             if result:
@@ -171,20 +194,23 @@ class Question:
                         logger.info(f"Choice {i+1} created successfully")
                     else:
                         logger.error(f"Failed to create choice {i+1}")
+                        raise ValueError(f"Failed to create choice {i+1}. Database error occurred.")
                 
                 return question_obj
             else:
                 logger.error("Failed to create question - no result returned")
-                return None
+                raise ValueError("Failed to create question. Database returned no result. Please check your input data and try again.")
                 
         except Exception as e:
             logger.error(f"Error creating question: {str(e)}")
             raise
     
-    def update(self, unit_text: str, question: str, mix_choices: int, image: str, 
-               mark: float, updated_by: int, choices: List[Dict[str, Any]]) -> bool:
+    def update(self, unit_text: str, question: str, mix_choices: int, image: str = None, 
+               mark: float = 1.0, updated_by: int = None, choices: List[Dict[str, Any]] = None) -> bool:
         """Cập nhật question"""
         try:
+            logger.info(f"Updating question {self.id} with unit_text='{unit_text}', question='{question[:50]}...'")
+            
             # Validate choices
             if not choices or len(choices) < 2:
                 raise ValueError("Question must have at least 2 choices")
@@ -193,6 +219,11 @@ class Question:
             has_correct_answer = any(choice.get('is_correct', False) for choice in choices)
             if not has_correct_answer:
                 raise ValueError("Question must have at least one correct answer")
+            
+            # Check if there's only one correct answer
+            correct_answers = [choice for choice in choices if choice.get('is_correct', False)]
+            if len(correct_answers) > 1:
+                raise ValueError("Multiple correct answers detected. Please ensure only one choice is marked as correct.")
             
             # Check if all choices have content
             empty_choices = []
@@ -213,7 +244,16 @@ class Question:
                     mark = %s, updated_by = %s, updated_at = NOW()
                 WHERE id = %s
             """
-            db.execute_query(query, (unit_text, question, mix_choices, image, mark, updated_by, self.id))
+            # Normalize image to SQL NULL if empty-like
+            image_value = _normalize_image_value(image)
+            db.execute_query(query, (unit_text, question, mix_choices, image_value, mark, updated_by, self.id))
+            
+            # Verify update was successful
+            verify_query = "SELECT id FROM questions WHERE id = %s"
+            result = db.execute_single(verify_query, (self.id,))
+            if not result:
+                logger.error(f"Question {self.id} not found after update")
+                raise ValueError(f"Question {self.id} was not found after update. The question may have been deleted by another user.")
             
             # Delete old choices
             db.execute_query("DELETE FROM choices WHERE question_id = %s", (self.id,))
@@ -238,15 +278,21 @@ class Question:
             self.image = image
             self.mark = mark
             self.updated_by = updated_by
-            # updated_at will be set when reloading
             
             # Reload choices
             self.choices = Choice.get_by_question_id(self.id)
             
+            logger.info(f"Question {self.id} updated successfully")
             return True
         except Exception as e:
             logger.error(f"Error updating question {self.id}: {str(e)}")
-            return False
+            # Re-raise the exception with more context
+            if "duplicate key value violates unique constraint" in str(e):
+                raise ValueError("Cannot update question: Multiple correct answers detected. Please ensure only one choice is marked as correct.")
+            elif "foreign key constraint" in str(e):
+                raise ValueError("Cannot update question: Referenced subject or user does not exist.")
+            else:
+                raise ValueError(f"Failed to update question: {str(e)}")
     
     def delete(self) -> bool:
         """Xóa question và các choices liên quan"""
@@ -268,7 +314,12 @@ class Question:
                 
         except Exception as e:
             logger.error(f"Error deleting question {self.id}: {str(e)}")
-            return False
+            if "foreign key constraint" in str(e):
+                raise ValueError("Cannot delete question: It is being used by an exam. Please remove it from all exams first.")
+            elif "duplicate key value" in str(e):
+                raise ValueError("Cannot delete question: Database constraint violation. Please try again.")
+            else:
+                raise ValueError(f"Failed to delete question: {str(e)}")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert question thành dict"""
@@ -312,10 +363,13 @@ def get_by_question_id(question_id: int) -> List[Choice]:
                 choices.append(Choice(**result))
             except Exception as e:
                 logger.error(f"Error processing choice {result.get('id', 'unknown')}: {e}")
-                continue
+                raise ValueError(f"Failed to process choice data: {str(e)}")
         return choices
     except Exception as e:
         logger.error(f"Error in get_by_question_id for question {question_id}: {e}")
-        return []
+        if "connection" in str(e).lower():
+            raise ValueError("Database connection error. Please try again later.")
+        else:
+            raise ValueError(f"Failed to load choices for question {question_id}: {str(e)}")
 
 Choice.get_by_question_id = get_by_question_id 
