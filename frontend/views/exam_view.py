@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, Any
+import os
+from PIL import Image, ImageTk
 from ..config import config
 from ..api_client import APIClient
 
@@ -347,7 +349,7 @@ class ExamView(tk.Frame):
         """Hiển thị dialog preview đề thi"""
         dialog = tk.Toplevel(self)
         dialog.title(f"Preview Đề Thi - {exam_data.get('code', '')}")
-        dialog.geometry("800x600")
+        dialog.geometry("1000x700")
         dialog.transient(self)
         dialog.grab_set()
         
@@ -377,45 +379,74 @@ class ExamView(tk.Frame):
             font=('Arial', 12)
         ).pack()
         
-        # Questions frame
-        questions_frame = tk.Frame(main_frame)
-        questions_frame.pack(fill='both', expand=True)
+        # Create canvas with scrollbar for questions
+        canvas_frame = tk.Frame(main_frame)
+        canvas_frame.pack(fill='both', expand=True)
         
-        # Text widget for questions
-        text_widget = tk.Text(
-            questions_frame,
-            font=('Arial', 11),
-            wrap='word',
-            state='disabled'
+        canvas = tk.Canvas(canvas_frame)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient='vertical', command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
         
-        scrollbar = ttk.Scrollbar(questions_frame, orient='vertical', command=text_widget.yview)
-        text_widget.configure(yscrollcommand=scrollbar.set)
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
         
-        text_widget.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
         
         # Load questions content
         questions = exam_data.get('questions', [])
-        content = ""
         
         for i, question in enumerate(questions, 1):
-            content += f"Câu {i}: {question.get('question_text', '')}\n"
+            # Question container
+            question_container = tk.Frame(scrollable_frame, relief='groove', bd=2)
+            question_container.pack(fill='x', pady=(0, 15), padx=5)
             
+            # Question text
+            question_text = question.get('question_text', '')
+            question_label = tk.Label(
+                question_container,
+                text=f"Câu {i}: {question_text}",
+                font=('Arial', 11, 'bold'),
+                wraplength=800,
+                justify='left',
+                anchor='w'
+            )
+            question_label.pack(anchor='w', padx=10, pady=(10, 5))
+            
+            # Display image if exists
+            image_path = question.get('image')
+            if image_path:
+                self.display_question_image(question_container, image_path)
+            
+            # Choices
             choices = question.get('choices', [])
             for j, choice in enumerate(choices):
                 choice_letter = choice.get('letter', '').upper()
                 choice_content = choice.get('content', '')
                 is_correct = choice.get('is_correct', False)
-                correct_mark = " ✓" if is_correct else ""
-                content += f"  {choice_letter}. {choice_content}{correct_mark}\n"
+                
+                choice_text = f"  {choice_letter}. {choice_content}"
+                if is_correct:
+                    choice_text += " ✓"
+                
+                choice_label = tk.Label(
+                    question_container,
+                    text=choice_text,
+                    font=('Arial', 10),
+                    wraplength=750,
+                    justify='left',
+                    anchor='w',
+                    fg='green' if is_correct else 'black'
+                )
+                choice_label.pack(anchor='w', padx=20, pady=2)
             
-            content += "\n"
-        
-        # Enable text widget to insert content
-        text_widget.config(state='normal')
-        text_widget.insert('1.0', content)
-        text_widget.config(state='disabled')
+            # Add some space after each question
+            tk.Frame(question_container, height=10).pack()
         
         # Close button
         close_button = tk.Button(
@@ -426,6 +457,54 @@ class ExamView(tk.Frame):
             width=10
         )
         close_button.pack(pady=(20, 0))
+    
+    def display_question_image(self, parent, image_path):
+        """Hiển thị ảnh cho câu hỏi"""
+        try:
+            # Construct full path to image
+            images_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images')
+            full_image_path = os.path.join(images_dir, image_path)
+            
+            if os.path.exists(full_image_path):
+                # Open and resize image
+                original_image = Image.open(full_image_path)
+                
+                # Calculate new size (max width 400px, maintain aspect ratio)
+                max_width = 400
+                width, height = original_image.size
+                if width > max_width:
+                    ratio = max_width / width
+                    new_width = max_width
+                    new_height = int(height * ratio)
+                    original_image = original_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                
+                # Convert to PhotoImage
+                photo = ImageTk.PhotoImage(original_image)
+                
+                # Create image label
+                image_label = tk.Label(parent, image=photo)
+                image_label.image = photo  # Keep a reference to prevent garbage collection
+                image_label.pack(pady=(5, 10), padx=10)
+                
+            else:
+                # Show error if image not found
+                error_label = tk.Label(
+                    parent,
+                    text=f"Không tìm thấy ảnh: {image_path}",
+                    font=('Arial', 9),
+                    fg='red'
+                )
+                error_label.pack(pady=(5, 10), padx=10)
+                
+        except Exception as e:
+            # Show error if image loading fails
+            error_label = tk.Label(
+                parent,
+                text=f"Lỗi load ảnh {image_path}: {str(e)}",
+                font=('Arial', 9),
+                fg='red'
+            )
+            error_label.pack(pady=(5, 10), padx=10)
     
     def go_back(self):
         """Go back to dashboard"""
