@@ -74,17 +74,10 @@ class DashboardView(tk.Frame):
             self.create_menu_button(menu_frame, "Import DOCX", self.open_import_view)
         
         if role == 'editor':
-            self.create_menu_button(menu_frame, "Manage Questions (CRUD)", self.open_question_view)
+            self.create_menu_button(menu_frame, "Manage Questions", self.open_question_view)
         
         if role == 'generator':
             self.create_menu_button(menu_frame, "Generate Exam with Mixed Answers", self.open_exam_view)
-        
-        # All roles can view questions and exams (read-only)
-        if role != 'editor':  # Editor already has full access
-            self.create_menu_button(menu_frame, "View Questions", self.open_question_view)
-        
-        if role != 'generator':  # Generator already has full access
-            self.create_menu_button(menu_frame, "View Exams", self.open_exam_view)
         
         # Logout button
         logout_button = tk.Button(

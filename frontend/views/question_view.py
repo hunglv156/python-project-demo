@@ -161,6 +161,8 @@ class QuestionView(tk.Frame):
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+            # Return to dashboard on error
+            self.go_back()
     
     def load_questions(self):
         """Load questions based on filter"""
@@ -183,20 +185,28 @@ class QuestionView(tk.Frame):
             
             # Add to treeview
             for question in self.questions:
-                subject_name = "Unknown"
-                for subject in self.subjects:
-                    if int(subject['id']) == int(question['subject_id']):
-                        subject_name = subject['name']
-                        break
-                
-                self.tree.insert('', 'end', values=(
-                    question['id'],
-                    subject_name,
-                    question['question'][:50] + "..." if len(question['question']) > 50 else question['question'],
-                    question.get('unit_text', ''),
-                    question.get('mark', ''),
-                    len(question.get('choices', []))
-                ))
+                try:
+                    subject_name = "Unknown"
+                    for subject in self.subjects:
+                        if int(subject['id']) == int(question['subject_id']):
+                            subject_name = subject['name']
+                            break
+                    
+                    question_text = question.get('question', '')
+                    if len(question_text) > 50:
+                        question_text = question_text[:50] + "..."
+                    
+                    self.tree.insert('', 'end', values=(
+                        question.get('id', ''),
+                        subject_name,
+                        question_text,
+                        question.get('unit_text', ''),
+                        question.get('mark', ''),
+                        len(question.get('choices', []))
+                    ))
+                except Exception as e:
+                    # Skip problematic questions
+                    continue
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load questions: {str(e)}")

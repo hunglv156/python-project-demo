@@ -13,9 +13,15 @@ class APIClient:
         url = f"{self.base_url}{endpoint}"
         
         try:
+            # Add timeout to prevent hanging
+            if 'timeout' not in kwargs:
+                kwargs['timeout'] = 10  # 10 seconds timeout
+            
             response = self.session.request(method, url, **kwargs)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.Timeout:
+            raise Exception("API request timed out. Please try again.")
         except requests.exceptions.RequestException as e:
             raise Exception(f"API request failed: {str(e)}")
     

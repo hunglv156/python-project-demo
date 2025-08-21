@@ -47,47 +47,59 @@ class Question:
     @staticmethod
     def get_all(subject_id: Optional[int] = None) -> List['Question']:
         """Lấy tất cả questions, có thể filter theo subject"""
-        if subject_id:
-            query = """
-                SELECT * FROM questions 
-                WHERE subject_id = %s 
-                ORDER BY created_at DESC
-            """
-            results = db.execute_query(query, (subject_id,))
-        else:
-            query = "SELECT * FROM questions ORDER BY created_at DESC"
-            results = db.execute_query(query)
-        
-        questions = []
-        for result in results:
-            # Convert datetime to string if needed
-            if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
-                result['created_at'] = result['created_at'].isoformat()
-            if 'updated_at' in result and result['updated_at'] and hasattr(result['updated_at'], 'isoformat'):
-                result['updated_at'] = result['updated_at'].isoformat()
+        try:
+            if subject_id:
+                query = """
+                    SELECT * FROM questions 
+                    WHERE subject_id = %s 
+                    ORDER BY created_at DESC
+                """
+                results = db.execute_query(query, (subject_id,))
+            else:
+                query = "SELECT * FROM questions ORDER BY created_at DESC"
+                results = db.execute_query(query)
             
-            question = Question(**result)
-            question.choices = Choice.get_by_question_id(question.id)
-            questions.append(question)
-        
-        return questions
+            questions = []
+            for result in results:
+                try:
+                    # Convert datetime to string if needed
+                    if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
+                        result['created_at'] = result['created_at'].isoformat()
+                    if 'updated_at' in result and result['updated_at'] and hasattr(result['updated_at'], 'isoformat'):
+                        result['updated_at'] = result['updated_at'].isoformat()
+                    
+                    question = Question(**result)
+                    question.choices = Choice.get_by_question_id(question.id)
+                    questions.append(question)
+                except Exception as e:
+                    logger.error(f"Error processing question {result.get('id', 'unknown')}: {e}")
+                    continue
+            
+            return questions
+        except Exception as e:
+            logger.error(f"Error in get_all: {e}")
+            return []
     
     @staticmethod
     def get_by_id(question_id: int) -> Optional['Question']:
         """Lấy question theo ID"""
-        query = "SELECT * FROM questions WHERE id = %s"
-        result = db.execute_single(query, (question_id,))
-        if result:
-            # Convert datetime to string if needed
-            if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
-                result['created_at'] = result['created_at'].isoformat()
-            if 'updated_at' in result and result['updated_at'] and hasattr(result['updated_at'], 'isoformat'):
-                result['updated_at'] = result['updated_at'].isoformat()
-            
-            question = Question(**result)
-            question.choices = Choice.get_by_question_id(question.id)
-            return question
-        return None
+        try:
+            query = "SELECT * FROM questions WHERE id = %s"
+            result = db.execute_single(query, (question_id,))
+            if result:
+                # Convert datetime to string if needed
+                if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
+                    result['created_at'] = result['created_at'].isoformat()
+                if 'updated_at' in result and result['updated_at'] and hasattr(result['updated_at'], 'isoformat'):
+                    result['updated_at'] = result['updated_at'].isoformat()
+                
+                question = Question(**result)
+                question.choices = Choice.get_by_question_id(question.id)
+                return question
+            return None
+        except Exception as e:
+            logger.error(f"Error in get_by_id for question {question_id}: {e}")
+            return None
     
     @staticmethod
     def create(subject_id: int, unit_text: str, question: str, mix_choices: int,
@@ -288,14 +300,22 @@ class Question:
 @staticmethod
 def get_by_question_id(question_id: int) -> List[Choice]:
     """Lấy choices theo question_id"""
-    query = "SELECT * FROM choices WHERE question_id = %s ORDER BY position"
-    results = db.execute_query(query, (question_id,))
-    choices = []
-    for result in results:
-        # Convert datetime to string if needed
-        if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
-            result['created_at'] = result['created_at'].isoformat()
-        choices.append(Choice(**result))
-    return choices
+    try:
+        query = "SELECT * FROM choices WHERE question_id = %s ORDER BY position"
+        results = db.execute_query(query, (question_id,))
+        choices = []
+        for result in results:
+            try:
+                # Convert datetime to string if needed
+                if 'created_at' in result and hasattr(result['created_at'], 'isoformat'):
+                    result['created_at'] = result['created_at'].isoformat()
+                choices.append(Choice(**result))
+            except Exception as e:
+                logger.error(f"Error processing choice {result.get('id', 'unknown')}: {e}")
+                continue
+        return choices
+    except Exception as e:
+        logger.error(f"Error in get_by_question_id for question {question_id}: {e}")
+        return []
 
 Choice.get_by_question_id = get_by_question_id 

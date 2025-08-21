@@ -44,7 +44,10 @@ async def get_questions(subject_id: Optional[int] = Query(None)):
         questions = Question.get_all(subject_id)
         return [QuestionResponse(**question.to_dict()) for question in questions]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting questions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load questions: {str(e)}")
 
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(question_id: int):

@@ -17,7 +17,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,
   username      VARCHAR(50) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL, -- Lưu hash password (bcrypt)
+  password VARCHAR(255) NOT NULL,
   role          VARCHAR(20) NOT NULL CHECK (role IN ('importer', 'editor', 'generator')),
   created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -78,51 +78,6 @@ CREATE INDEX IF NOT EXISTS idx_choices_question ON choices(question_id);
 CREATE UNIQUE INDEX uq_one_correct_per_question
 ON choices(question_id)
 WHERE is_correct = TRUE;
-
--- ÍT NHẤT 1 đáp án đúng/câu
-CREATE OR REPLACE FUNCTION check_correct_answers()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF (TG_OP = 'UPDATE' AND OLD.is_correct = TRUE AND NEW.is_correct = FALSE) OR 
-     (TG_OP = 'DELETE' AND OLD.is_correct = TRUE) THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM choices
-      WHERE question_id = OLD.question_id
-        AND id <> OLD.id
-        AND is_correct = TRUE
-    ) THEN
-      RAISE EXCEPTION 'A question must have at least one correct answer';
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_no_zero_correct_on_update
-BEFORE UPDATE ON choices
-FOR EACH ROW
-EXECUTE FUNCTION check_correct_answers();
-
-CREATE TRIGGER trg_no_zero_correct_on_delete
-BEFORE DELETE ON choices
-FOR EACH ROW
-EXECUTE FUNCTION check_correct_answers();
-
--- Trigger đảm bảo content không được empty
-CREATE OR REPLACE FUNCTION check_choice_content()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.content IS NULL OR TRIM(NEW.content) = '' THEN
-    RAISE EXCEPTION 'Choice content cannot be empty';
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_check_choice_content
-BEFORE INSERT OR UPDATE ON choices
-FOR EACH ROW
-EXECUTE FUNCTION check_choice_content();
 
 -- =========================
 -- 6) EXAMS (Khuôn đề)
