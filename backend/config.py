@@ -14,8 +14,6 @@ class Settings:
     IMAGES_DIR: str = "images"
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
     
-    # Security settings
-    SECRET_KEY: str = "your-secret-key-here"
     
     @classmethod
     def get_database_url(cls) -> str:
