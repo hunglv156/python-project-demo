@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Test Management System API"
+    description="Exam Management System API"
 )
 
 # Add CORS middleware
@@ -65,7 +65,7 @@ async def shutdown_event():
 async def root():
     """Root endpoint"""
     return {
-        "message": "Test Management System API",
+        "message": "Exam Management System API",
         "version": settings.APP_VERSION,
         "status": "running"
     }

@@ -7,7 +7,7 @@ class FrontendConfig:
     # UI settings
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 800
-    WINDOW_TITLE = "Test Management System"
+    WINDOW_TITLE = "Exam Management System"
     
     # Colors
     PRIMARY_COLOR = "#2E86AB"

@@ -13,7 +13,7 @@ from frontend.views import LoginView, DashboardView
 from frontend.api_client import APIClient
 from frontend.config import config
 
-class TestManagementApp:
+class ExamManagementApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title(config.WINDOW_TITLE)
@@ -109,7 +109,7 @@ class TestManagementApp:
 def main():
     """Main function"""
     try:
-        app = TestManagementApp()
+        app = ExamManagementApp()
         app.run()
     except Exception as e:
         messagebox.showerror("Error", f"Application failed to start: {str(e)}")

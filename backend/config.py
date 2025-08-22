@@ -6,7 +6,7 @@ class Settings:
     DATABASE_URL: str = "postgresql://postgres:python_project@localhost:5432/python_project"
     
     # Application settings
-    APP_NAME: str = "Test Management System"
+    APP_NAME: str = "Exam Management System"
     APP_VERSION: str = "1.0.0"
     
     # File upload settings

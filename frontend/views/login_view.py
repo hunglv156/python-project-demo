@@ -101,7 +101,6 @@ class LoginView(tk.Frame):
         
         try:
             # Show loading
-            self.config(cursor="wait")
             self.update()
             
             # Call API
@@ -131,9 +130,3 @@ class LoginView(tk.Frame):
                 
         except Exception as e:
             messagebox.showerror("Error", f"Login failed: {str(e)}")
-        finally:
-            try:
-                self.config(cursor="")
-            except tk.TclError:
-                # Widget might have been destroyed
-                pass 

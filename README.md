@@ -320,17 +320,7 @@ docker logs python_project
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Tạo Pull Request
 
-## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
-## 📞 Support
-
-Nếu bạn gặp vấn đề, vui lòng:
-
-1. Kiểm tra phần Troubleshooting
-2. Tạo issue trên GitHub
-3. Liên hệ maintainer
 
 ---
 

@@ -108,7 +108,6 @@ class ImportView(tk.Frame):
             wrap='word',
             height=20,  # Increased height for better viewing
             state='disabled',  # Make it read-only
-            cursor='arrow'  # Show arrow cursor instead of text cursor
         )
         
         # Vertical scrollbar
@@ -167,7 +166,6 @@ class ImportView(tk.Frame):
         try:
             # Show loading
             try:
-                self.config(cursor="wait")
                 self.update()
             except tk.TclError:
                 # Widget might have been destroyed
@@ -198,12 +196,7 @@ class ImportView(tk.Frame):
         except Exception as e:
             messagebox.showerror("Error", f"Preview failed: {str(e)}")
             self.import_button.config(state='disabled')
-        finally:
-            try:
-                self.config(cursor="")
-            except tk.TclError:
-                # Widget might have been destroyed
-                pass
+           
     
     def preview_file(self):
         """Preview DOCX file - DEPRECATED"""
@@ -290,7 +283,6 @@ class ImportView(tk.Frame):
         try:
             # Show loading
             try:
-                self.config(cursor="wait")
                 self.update()
             except tk.TclError:
                 # Widget might have been destroyed
@@ -318,12 +310,6 @@ class ImportView(tk.Frame):
                 
         except Exception as e:
             messagebox.showerror("Error", str(e))
-        finally:
-            try:
-                self.config(cursor="")
-            except tk.TclError:
-                # Widget might have been destroyed
-                pass
     
     def go_back(self):
         """Go back to dashboard"""
